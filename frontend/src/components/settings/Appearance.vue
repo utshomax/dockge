@@ -31,7 +31,7 @@
                         autocomplete="off"
                         value="light"
                     />
-                    <label class="btn btn-outline-primary" for="btncheck1">
+                    <label class="btn linear-btn-outline" for="btncheck1">
                         {{ $t("Light") }}
                     </label>
 
@@ -44,7 +44,7 @@
                         autocomplete="off"
                         value="dark"
                     />
-                    <label class="btn btn-outline-primary" for="btncheck2">
+                    <label class="btn linear-btn-outline" for="btncheck2">
                         {{ $t("Dark") }}
                     </label>
 
@@ -57,7 +57,7 @@
                         autocomplete="off"
                         value="auto"
                     />
-                    <label class="btn btn-outline-primary" for="btncheck3">
+                    <label class="btn linear-btn-outline" for="btncheck3">
                         {{ $t("Auto") }}
                     </label>
                 </div>
@@ -75,9 +75,9 @@ export default {
 <style lang="scss" scoped>
 @import "../../styles/vars.scss";
 
-.btn-check:active + .btn-outline-primary,
-.btn-check:checked + .btn-outline-primary,
-.btn-check:hover + .btn-outline-primary {
+.btn-check:active + .linear-btn-outline,
+.btn-check:checked + .linear-btn-outline,
+.btn-check:hover + .linear-btn-outline {
     color: #fff;
 
     .dark & {

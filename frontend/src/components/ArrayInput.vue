@@ -1,14 +1,19 @@
 <template>
     <div>
         <div v-if="valid">
-            <ul v-if="isArrayInited" class="list-group">
-                <li v-for="(value, index) in array" :key="index" class="list-group-item">
-                    <input v-model="array[index]" type="text" class="no-bg domain-input" :placeholder="placeholder" />
-                    <font-awesome-icon icon="times" class="action remove ms-2 me-3 text-danger" @click="remove(index)" />
-                </li>
-            </ul>
+            <div v-if="isArrayInited" class="linear-list">
+                <div v-for="(value, index) in array" :key="index" class="linear-list-item">
+                    <input v-model="array[index]" type="text" class="domain-input" :placeholder="placeholder" />
+                    <button class="remove-btn" @click="remove(index)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                </div>
+            </div>
 
-            <button class="btn btn-normal btn-sm mt-3" @click="addField">{{ $t("addListItem", [ displayName ]) }}</button>
+            <button class="btn linear-btn-ghost mt-3" @click="addField">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                {{ $t("addListItem", [ displayName ]) }}
+            </button>
         </div>
         <div v-else>
             {{ $t("LongSyntaxNotSupported") }}
@@ -125,23 +130,49 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-.list-group {
-    background-color: $dark-bg2;
+.linear-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 
-    li {
+    .linear-list-item {
         display: flex;
         align-items: center;
-        padding: 10px 0 10px 10px;
+        background-color: $dark-bg2;
+        border: 1px solid $dark-border-color;
+        border-radius: 6px;
+        padding: 6px 12px;
+        transition: border-color 0.2s ease;
+
+        &:focus-within {
+            border-color: rgba(255, 255, 255, 0.25);
+        }
 
         .domain-input {
             flex-grow: 1;
-            background-color: $dark-bg2;
+            background-color: transparent;
             border: none;
             color: $dark-font-color;
             outline: none;
+            font-size: 13px;
 
             &::placeholder {
-                color: #1d2634;
+                color: rgba(255, 255, 255, 0.2);
+            }
+        }
+        
+        .remove-btn {
+            background: transparent;
+            border: none;
+            color: #f87171;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            &:hover {
+                opacity: 1;
             }
         }
     }

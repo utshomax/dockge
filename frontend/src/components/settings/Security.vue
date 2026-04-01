@@ -57,7 +57,7 @@
                     </div>
 
                     <div>
-                        <button class="btn btn-primary" type="submit">
+                        <button class="btn linear-btn-primary" type="submit">
                             {{ $t("Update Password") }}
                         </button>
                     </div>
@@ -71,7 +71,7 @@
                 </h5>
                 <div class="mb-4">
                     <button
-                        class="btn btn-primary me-2"
+                        class="btn linear-btn-primary me-2"
                         type="button"
                         @click="$refs.TwoFADialog.show()"
                     >
@@ -85,8 +85,8 @@
                 <h5 class="my-4 settings-subheading">{{ $t("Advanced") }}</h5>
 
                 <div class="mb-4">
-                    <button v-if="settings.disableAuth" id="enableAuth-btn" class="btn btn-outline-primary me-2 mb-2" @click="enableAuth">{{ $t("Enable Auth") }}</button>
-                    <button v-if="! settings.disableAuth" id="disableAuth-btn" class="btn btn-primary me-2 mb-2" @click="confirmDisableAuth">{{ $t("Disable Auth") }}</button>
+                    <button v-if="settings.disableAuth" id="enableAuth-btn" class="btn linear-btn-outline me-2 mb-2" @click="enableAuth">{{ $t("Enable Auth") }}</button>
+                    <button v-if="! settings.disableAuth" id="disableAuth-btn" class="btn linear-btn-primary me-2 mb-2" @click="confirmDisableAuth">{{ $t("Disable Auth") }}</button>
                 </div>
             </div>
         </div>

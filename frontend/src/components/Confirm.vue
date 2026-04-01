@@ -15,7 +15,7 @@
                     <button type="button" class="btn" :class="btnStyle" data-bs-dismiss="modal" @click="yes">
                         {{ yesText }}
                     </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="no">
+                    <button type="button" class="btn linear-btn-outline" data-bs-dismiss="modal" @click="no">
                         {{ noText }}
                     </button>
                 </div>
@@ -32,7 +32,7 @@ export default {
         /** Style of button */
         btnStyle: {
             type: String,
-            default: "btn-primary",
+            default: "linear-btn-primary",
         },
         /** Text to use as yes */
         yesText: {

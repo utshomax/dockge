@@ -1,70 +1,85 @@
 <template>
     <transition name="slide-fade" appear>
-        <div>
-            <h1 v-if="isAdd" class="mb-3">{{ $t("compose") }}</h1>
-            <h1 v-else class="mb-3">
-                <Uptime :stack="globalStack" :pill="true" /> {{ stack.name }}
-                <span v-if="$root.agentCount > 1" class="agent-name">
-                    ({{ endpointDisplay }})
-                </span>
-            </h1>
+        <div class="compose-page">
+            <!-- Page header -->
+            <div class="compose-header">
+                <div class="compose-title">
+                    <h1 v-if="isAdd">{{ $t("compose") }}</h1>
+                    <h1 v-else class="flex-title">
+                        <Uptime :stack="globalStack" class="title-dot" />
+                        {{ stack.name }}
+                        <span v-if="$root.agentCount > 1" class="agent-tag">{{ endpointDisplay }}</span>
+                    </h1>
+                </div>
 
-            <div v-if="stack.isManagedByDockge" class="mb-3">
-                <div class="btn-group me-2" role="group">
-                    <button v-if="isEditMode" class="btn btn-primary" :disabled="processing" @click="deployStack">
-                        <font-awesome-icon icon="rocket" class="me-1" />
-                        {{ $t("deployStack") }}
+                <!-- Action buttons -->
+                <div v-if="stack.isManagedByDockge" class="compose-actions">
+                    <!-- Edit Mode Actions -->
+                    <button v-if="isEditMode" class="btn linear-btn-primary" :disabled="processing" @click="deployStack">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.5-1.5 2.5 0 4 1.5 1.5 2.5 1.5 4 0l8-8c1.5-1.5 1.5-2.5 0-4L12 4c-1.5-1.5-2.5-1.5-4 0L4.5 8.5"/><path d="m22 2-7 7"/></svg>
+                        Deploy
+                    </button>
+                    <button v-if="isEditMode" class="btn linear-btn-outline" :disabled="processing" @click="saveStack">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save
+                    </button>
+                    <button v-if="isEditMode && !isAdd" class="btn linear-btn-ghost" :disabled="processing" @click="discardStack">
+                        Discard
                     </button>
 
-                    <button v-if="isEditMode" class="btn btn-normal" :disabled="processing" @click="saveStack">
-                        <font-awesome-icon icon="save" class="me-1" />
-                        {{ $t("saveStackDraft") }}
-                    </button>
-
-                    <button v-if="!isEditMode" class="btn btn-secondary" :disabled="processing" @click="enableEditMode">
-                        <font-awesome-icon icon="pen" class="me-1" />
+                    <!-- View Mode Actions -->
+                    <button v-if="!isEditMode" class="btn linear-btn-outline" :disabled="processing" @click="enableEditMode">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                         {{ $t("editStack") }}
                     </button>
 
-                    <button v-if="!isEditMode && !active" class="btn btn-primary" :disabled="processing" @click="startStack">
-                        <font-awesome-icon icon="play" class="me-1" />
+                    <button v-if="!isEditMode && !active" class="btn btn-success" :disabled="processing" @click="startStack">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         {{ $t("startStack") }}
                     </button>
 
-                    <button v-if="!isEditMode && active" class="btn btn-normal " :disabled="processing" @click="restartStack">
-                        <font-awesome-icon icon="rotate" class="me-1" />
+                    <button v-if="!isEditMode && active" class="btn linear-btn-outline" :disabled="processing" @click="restartStack">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
                         {{ $t("restartStack") }}
                     </button>
 
-                    <button v-if="!isEditMode" class="btn btn-normal" :disabled="processing" @click="updateStack">
-                        <font-awesome-icon icon="cloud-arrow-down" class="me-1" />
+                    <button v-if="!isEditMode" class="btn linear-btn-outline" :disabled="processing" @click="updateStack">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         {{ $t("updateStack") }}
                     </button>
 
-                    <button v-if="!isEditMode && active" class="btn btn-normal" :disabled="processing" @click="stopStack">
-                        <font-awesome-icon icon="stop" class="me-1" />
+                    <button v-if="!isEditMode && active" class="btn linear-btn-outline" :disabled="processing" @click="stopStack">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
                         {{ $t("stopStack") }}
                     </button>
 
-                    <BDropdown right text="" variant="normal">
-                        <BDropdownItem @click="downStack">
-                            <font-awesome-icon icon="stop" class="me-1" />
-                            {{ $t("downStack") }}
-                        </BDropdownItem>
-                    </BDropdown>
-                </div>
+                    <!-- More actions dropdown -->
+                    <div v-if="!isEditMode" class="dropdown">
+                        <button class="btn linear-btn-outline" data-bs-toggle="dropdown">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <button class="dropdown-item" @click="downStack">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                                    {{ $t("downStack") }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
 
-                <button v-if="isEditMode && !isAdd" class="btn btn-normal" :disabled="processing" @click="discardStack">{{ $t("discardStack") }}</button>
-                <button v-if="!isEditMode" class="btn btn-danger" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
-                    <font-awesome-icon icon="trash" class="me-1" />
-                    {{ $t("deleteStack") }}
-                </button>
+                    <button v-if="!isEditMode" class="btn btn-danger" :disabled="processing" @click="showDeleteDialog = !showDeleteDialog">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        {{ $t("deleteStack") }}
+                    </button>
+                </div>
             </div>
 
             <!-- URLs -->
-            <div v-if="urls.length > 0" class="mb-3">
-                <a v-for="(url, index) in urls" :key="index" target="_blank" :href="url.url">
-                    <span class="badge bg-secondary me-2">{{ url.display }}</span>
+            <div v-if="urls.length > 0" class="url-list">
+                <a v-for="(url, index) in urls" :key="index" target="_blank" :href="url.url" class="url-badge">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    {{ url.display }}
                 </a>
             </div>
 
@@ -81,23 +96,23 @@
                 ></Terminal>
             </transition>
 
-            <div v-if="stack.isManagedByDockge" class="row">
-                <div class="col-lg-6">
+            <div v-if="stack.isManagedByDockge" class="compose-body">
+                <div class="compose-column">
                     <!-- General -->
-                    <div v-if="isAdd">
-                        <h4 class="mb-3">{{ $t("general") }}</h4>
-                        <div class="shadow-box big-padding mb-3">
+                    <div v-if="isAdd" class="section">
+                        <div class="section-label">{{ $t("general") }}</div>
+                        <div class="panel big-panel">
                             <!-- Stack Name -->
-                            <div>
-                                <label for="name" class="form-label">{{ $t("stackName") }}</label>
+                            <div class="field-row">
+                                <label for="name" class="field-label">{{ $t("stackName") }}</label>
                                 <input id="name" v-model="stack.name" type="text" class="form-control" required @blur="stackNameToLowercase">
-                                <div class="form-text">{{ $t("Lowercase only") }}</div>
+                                <div class="field-hint">{{ $t("Lowercase only") }}</div>
                             </div>
 
                             <!-- Endpoint -->
-                            <div class="mt-3">
-                                <label for="name" class="form-label">{{ $t("dockgeAgent") }}</label>
-                                <select v-model="stack.endpoint" class="form-select">
+                            <div class="field-row mt-3">
+                                <label for="endpoint" class="field-label">{{ $t("dockgeAgent") }}</label>
+                                <select id="endpoint" v-model="stack.endpoint" class="form-select">
                                     <option v-for="(agent, endpoint) in $root.agentList" :key="endpoint" :value="endpoint" :disabled="$root.agentStatusList[endpoint] != 'online'">
                                         ({{ $root.agentStatusList[endpoint] }}) {{ (endpoint) ? endpoint : $t("currentEndpoint") }}
                                     </option>
@@ -107,96 +122,93 @@
                     </div>
 
                     <!-- Containers -->
-                    <h4 class="mb-3">{{ $tc("container", 2) }}</h4>
+                    <div class="section">
+                        <div class="section-label">{{ $tc("container", 2) }}</div>
 
-                    <div v-if="isEditMode" class="input-group mb-3">
-                        <input
-                            v-model="newContainerName"
-                            :placeholder="$t(`New Container Name...`)"
-                            class="form-control"
-                            @keyup.enter="addContainer"
-                        />
-                        <button class="btn btn-primary" @click="addContainer">
-                            {{ $t("addContainer") }}
-                        </button>
+                        <div v-if="isEditMode" class="add-container-row">
+                            <input
+                                v-model="newContainerName"
+                                :placeholder="$t(`New Container Name...`)"
+                                class="add-container-input"
+                                @keyup.enter="addContainer"
+                            />
+                            <button class="add-container-btn" @click="addContainer">
+                                {{ $t("addContainer") }}
+                            </button>
+                        </div>
+
+                        <div ref="containerList">
+                            <Container
+                                v-for="(service, name) in jsonConfig.services"
+                                :key="name"
+                                :name="name"
+                                :is-edit-mode="isEditMode"
+                                :first="name === Object.keys(jsonConfig.services)[0]"
+                                :status="serviceStatusList[name]?.state"
+                                :ports="serviceStatusList[name]?.ports"
+                            />
+                        </div>
                     </div>
 
-                    <div ref="containerList">
-                        <Container
-                            v-for="(service, name) in jsonConfig.services"
-                            :key="name"
-                            :name="name"
-                            :is-edit-mode="isEditMode"
-                            :first="name === Object.keys(jsonConfig.services)[0]"
-                            :status="serviceStatusList[name]?.state"
-                            :ports="serviceStatusList[name]?.ports"
-                        />
-                    </div>
-
-                    <button v-if="false && isEditMode && jsonConfig.services && Object.keys(jsonConfig.services).length > 0" class="btn btn-normal mb-3" @click="addContainer">{{ $t("addContainer") }}</button>
-
-                    <!-- General -->
-                    <div v-if="isEditMode">
-                        <h4 class="mb-3">{{ $t("extra") }}</h4>
-                        <div class="shadow-box big-padding mb-3">
-                            <!-- URLs -->
-                            <div class="mb-4">
-                                <label class="form-label">
-                                    {{ $tc("url", 2) }}
-                                </label>
-                                <ArrayInput name="urls" :display-name="$t('url')" placeholder="https://" object-type="x-dockge" />
-                            </div>
+                    <!-- Extra -->
+                    <div v-if="isEditMode" class="section">
+                        <div class="section-label">{{ $t("extra") }}</div>
+                        <!-- URLs -->
+                        <div class="mt-2">
+                            <ArrayInput name="urls" :display-name="$t('url')" placeholder="https://" object-type="x-dockge" />
                         </div>
                     </div>
 
                     <!-- Combined Terminal Output -->
-                    <div v-show="!isEditMode">
-                        <h4 class="mb-3">{{ $t("terminal") }}</h4>
+                    <div v-show="!isEditMode" class="section">
+                        <div class="section-label">{{ $t("terminal") }}</div>
                         <Terminal
                             ref="combinedTerminal"
-                            class="mb-3 terminal"
+                            class="combined-terminal mt-2"
                             :name="combinedTerminalName"
                             :endpoint="endpoint"
                             :rows="combinedTerminalRows"
                             :cols="combinedTerminalCols"
-                            style="height: 315px;"
                         ></Terminal>
                     </div>
                 </div>
-                <div class="col-lg-6">
-                    <h4 class="mb-3">{{ stack.composeFileName }}</h4>
+                <div class="compose-column">
+                    <div class="section">
+                        <div class="section-label">{{ stack.composeFileName || 'compose.yaml' }}</div>
 
-                    <!-- YAML editor -->
-                    <div class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
-                        <code-mirror
-                            ref="editor"
-                            v-model="stack.composeYAML"
-                            :extensions="extensions"
-                            minimal
-                            wrap="true"
-                            dark="true"
-                            tab="true"
-                            :disabled="!isEditMode"
-                            :hasFocus="editorFocus"
-                            @change="yamlCodeChange"
-                        />
-                    </div>
-                    <div v-if="isEditMode" class="mb-3">
-                        {{ yamlError }}
+                        <!-- YAML editor -->
+                        <div class="editor-panel mt-2" :class="{'edit-mode' : isEditMode}">
+                            <!-- Optional Top Bar for Editor can go here -->
+                            <code-mirror
+                                ref="editor"
+                                v-model="stack.composeYAML"
+                                :extensions="extensions"
+                                minimal
+                                :wrap="true"
+                                :dark="true"
+                                :tab="true"
+                                :disabled="!isEditMode"
+                                :hasFocus="editorFocus"
+                                @change="yamlCodeChange"
+                            />
+                        </div>
+                        <div v-if="isEditMode && yamlError" class="yaml-error">
+                            {{ yamlError }}
+                        </div>
                     </div>
 
                     <!-- ENV editor -->
-                    <div v-if="isEditMode">
-                        <h4 class="mb-3">.env</h4>
-                        <div class="shadow-box mb-3 editor-box" :class="{'edit-mode' : isEditMode}">
+                    <div v-if="isEditMode" class="section">
+                        <div class="section-label">.env</div>
+                        <div class="editor-panel mt-2" :class="{'edit-mode' : isEditMode}">
                             <code-mirror
                                 ref="editor"
                                 v-model="stack.composeENV"
                                 :extensions="extensionsEnv"
                                 minimal
-                                wrap="true"
-                                dark="true"
-                                tab="true"
+                                :wrap="true"
+                                :dark="true"
+                                :tab="true"
                                 :disabled="!isEditMode"
                                 :hasFocus="editorFocus"
                                 @change="yamlCodeChange"
@@ -205,16 +217,8 @@
                     </div>
 
                     <div v-if="isEditMode">
-                        <!-- Volumes -->
-                        <div v-if="false">
-                            <h4 class="mb-3">{{ $tc("volume", 2) }}</h4>
-                            <div class="shadow-box big-padding mb-3">
-                            </div>
-                        </div>
-
                         <!-- Networks -->
-                        <h4 class="mb-3">{{ $tc("network", 2) }}</h4>
-                        <div class="shadow-box big-padding mb-3">
+                        <div class="section">
                             <NetworkInput />
                         </div>
                     </div>
@@ -230,7 +234,7 @@
                 </div>
             </div>
 
-            <div v-if="!stack.isManagedByDockge && !processing">
+            <div v-if="!stack.isManagedByDockge && !processing" class="not-managed">
                 {{ $t("stackNotManagedByDockgeMsg") }}
             </div>
 
@@ -250,7 +254,7 @@ import { dracula as editorTheme } from "thememirror";
 import { lineNumbers, EditorView } from "@codemirror/view";
 import { parseDocument, Document } from "yaml";
 
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+
 import {
     COMBINED_TERMINAL_COLS,
     COMBINED_TERMINAL_ROWS,
@@ -282,7 +286,6 @@ let serviceStatusTimeout = null;
 export default {
     components: {
         NetworkInput,
-        FontAwesomeIcon,
         CodeMirror,
         BModal,
     },
@@ -784,17 +787,265 @@ export default {
 <style scoped lang="scss">
 @import "../styles/vars.scss";
 
-.terminal {
-    height: 200px;
+.compose-page {
+    max-width: 1200px;
 }
 
-.editor-box {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+// =====================
+// Header
+// =====================
+.compose-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
 }
 
-.agent-name {
-    font-size: 13px;
+.compose-title {
+    h1 {
+        font-size: 18px;
+        font-weight: 600;
+        color: $dark-font-color;
+        letter-spacing: -0.02em;
+        margin: 0;
+    }
+
+    .flex-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+}
+
+.title-dot {
+    flex-shrink: 0;
+}
+
+.agent-tag {
+    font-size: 12px;
+    font-weight: 400;
     color: $dark-font-color3;
+}
+
+.compose-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+// =====================
+// URL list
+// =====================
+.url-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.url-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    background-color: $dark-bg3;
+    border: 1px solid $dark-border-color;
+    border-radius: 4px;
+    font-size: 12px;
+    color: $dark-font-color2;
+    text-decoration: none;
+    transition: border-color 120ms ease, color 120ms ease;
+
+    &:hover {
+        border-color: rgba(255,255,255,0.15);
+        color: $dark-font-color;
+    }
+}
+
+// =====================
+// Progress terminal
+// =====================
+.progress-terminal {
+    height: 160px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid $dark-border-color;
+    margin-bottom: 20px;
+}
+
+// =====================
+// Body (two columns)
+// =====================
+.compose-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+
+    @media (max-width: 900px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+// =====================
+// Sections
+// =====================
+.section {
+    margin-bottom: 20px;
+}
+
+.section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: $dark-font-color3;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+// =====================
+// Panels (cards)
+// =====================
+.panel {
+    background-color: $dark-bg3;
+    border: 1px solid $dark-border-color;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.big-panel {
+    padding: 16px;
+}
+
+// =====================
+// Fields
+// =====================
+.field-row {
+    margin-bottom: 14px;
+
+    &:last-child { margin-bottom: 0; }
+}
+
+.field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: $dark-font-color3;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.field-hint {
+    font-size: 11px;
+    color: $dark-font-color3;
+    margin-top: 4px;
+}
+
+// =====================
+// Add container row
+// =====================
+.add-container-row {
+    display: flex;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    border: 1px solid $dark-border-color;
+    background-color: $dark-bg2;
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+
+    &:focus-within {
+        border-color: rgba(255,255,255,0.3);
+    }
+
+    .add-container-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        outline: none;
+        color: $dark-font-color;
+        padding: 8px 12px;
+        font-size: 13px;
+        
+        &::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+    }
+
+    .add-container-btn {
+        border: none;
+        border-left: 1px solid $dark-border-color;
+        background-color: #f3f4f6;
+        color: #111827;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 0 16px;
+        transition: background-color 0.2s ease, opacity 0.2s ease;
+        cursor: pointer;
+
+        &:hover {
+            background-color: #ffffff;
+            opacity: 0.9;
+        }
+    }
+}
+
+// =====================
+// Terminals
+// =====================
+.combined-terminal {
+    height: 300px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid $dark-border-color;
+}
+
+// =====================
+// YAML Editor
+// =====================
+.editor-panel {
+    background-color: #1e1e1e; /* Codemirror default dark background match */
+    border: 1px solid $dark-border-color;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+
+    &.edit-mode {
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+}
+.editor-panel .vue-codemirror { /* target the inner editor wrapper */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.editor-panel :deep(.cm-editor) {
+    height: 100%;
+    outline: none !important;
+}
+
+.yaml-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #f87171;
+}
+
+// =====================
+// Not managed
+// =====================
+.not-managed {
+    font-size: 13px;
+    color: $dark-font-color2;
+    padding: 16px;
+    background-color: $dark-bg3;
+    border: 1px solid $dark-border-color;
+    border-radius: 8px;
 }
 </style>

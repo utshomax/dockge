@@ -1,84 +1,66 @@
 <template>
-    <div class="shadow-box big-padding mb-3 container">
-        <div class="row">
-            <div class="col-7">
-                <h4>{{ name }}</h4>
-                <div class="image mb-2">
-                    <span class="me-1">{{ imageName }}:</span><span class="tag">{{ imageTag }}</span>
-                </div>
-                <div v-if="!isEditMode">
-                    <span class="badge me-1" :class="bgStyle">{{ status }}</span>
-
-                    <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank">
-                        <span class="badge me-1 bg-secondary">{{ parsePort(port).display }}</span>
-                    </a>
-                </div>
+    <div class="container-card mb-3">
+        <!-- Header row -->
+        <div class="container-header">
+            <div class="container-info">
+                <span class="container-name">{{ name }}</span>
+                <span class="container-image">
+                    <span class="image-name">{{ imageName }}</span><span class="image-sep">:</span><span class="image-tag">{{ imageTag }}</span>
+                </span>
             </div>
-            <div class="col-5">
-                <div class="function">
-                    <router-link v-if="!isEditMode" class="btn btn-normal" :to="terminalRouteLink" disabled="">
-                        <font-awesome-icon icon="terminal" />
-                        Bash
-                    </router-link>
-                </div>
+
+            <!-- View mode: status badge + ports + bash button -->
+            <div v-if="!isEditMode" class="container-meta">
+                <span v-if="status" class="status-badge" :class="statusClass">{{ status }}</span>
+                <a v-for="port in (ports ?? envsubstService.ports)" :key="port" :href="parsePort(port).url" target="_blank" class="port-badge">
+                    {{ parsePort(port).display }}
+                </a>
+                <router-link class="btn btn-normal btn-sm" :to="terminalRouteLink">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Bash
+                </router-link>
+            </div>
+
+            <!-- Edit mode: edit + delete buttons -->
+            <div v-if="isEditMode" class="container-edit-actions">
+                <button class="btn btn-normal btn-sm" @click="showConfig = !showConfig">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    {{ $t("Edit") }}
+                </button>
+                <button class="btn btn-danger btn-sm" @click="remove">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    {{ $t("deleteContainer") }}
+                </button>
             </div>
         </div>
 
-        <div v-if="isEditMode" class="mt-2">
-            <button class="btn btn-normal me-2" @click="showConfig = !showConfig">
-                <font-awesome-icon icon="edit" />
-                {{ $t("Edit") }}
-            </button>
-            <button v-if="false" class="btn btn-normal me-2">Rename</button>
-            <button class="btn btn-danger me-2" @click="remove">
-                <font-awesome-icon icon="trash" />
-                {{ $t("deleteContainer") }}
-            </button>
-        </div>
-
+        <!-- Expanded config section -->
         <transition name="slide-fade" appear>
-            <div v-if="isEditMode && showConfig" class="config mt-3">
+            <div v-if="isEditMode && showConfig" class="container-config">
                 <!-- Image -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $t("dockerImage") }}
-                    </label>
-                    <div class="input-group mb-3">
-                        <input
-                            v-model="service.image"
-                            class="form-control"
-                            list="image-datalist"
-                        />
-                    </div>
-
-                    <!-- TODO: Search online: https://hub.docker.com/api/content/v1/products/search?q=louislam%2Fuptime&source=community&page=1&page_size=4 -->
+                <div class="config-field">
+                    <label class="config-label">{{ $t("dockerImage") }}</label>
+                    <input v-model="service.image" class="form-control" list="image-datalist" />
                     <datalist id="image-datalist">
                         <option value="louislam/uptime-kuma:1" />
                     </datalist>
-                    <div class="form-text"></div>
                 </div>
 
                 <!-- Ports -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $tc("port", 2) }}
-                    </label>
+                <div class="config-field">
+                    <label class="config-label">{{ $tc("port", 2) }}</label>
                     <ArrayInput name="ports" :display-name="$t('port')" placeholder="HOST:CONTAINER" />
                 </div>
 
                 <!-- Volumes -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $tc("volume", 2) }}
-                    </label>
+                <div class="config-field">
+                    <label class="config-label">{{ $tc("volume", 2) }}</label>
                     <ArrayInput name="volumes" :display-name="$t('volume')" placeholder="HOST:CONTAINER" />
                 </div>
 
                 <!-- Restart Policy -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $t("restartPolicy") }}
-                    </label>
+                <div class="config-field">
+                    <label class="config-label">{{ $t("restartPolicy") }}</label>
                     <select v-model="service.restart" class="form-select">
                         <option value="always">{{ $t("restartPolicyAlways") }}</option>
                         <option value="unless-stopped">{{ $t("restartPolicyUnlessStopped") }}</option>
@@ -88,45 +70,23 @@
                 </div>
 
                 <!-- Environment Variables -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $tc("environmentVariable", 2) }}
-                    </label>
+                <div class="config-field">
+                    <label class="config-label">{{ $tc("environmentVariable", 2) }}</label>
                     <ArrayInput name="environment" :display-name="$t('environmentVariable')" placeholder="KEY=VALUE" />
                 </div>
 
-                <!-- Container Name -->
-                <div v-if="false" class="mb-4">
-                    <label class="form-label">
-                        {{ $t("containerName") }}
-                    </label>
-                    <div class="input-group mb-3">
-                        <input
-                            v-model="service.container_name"
-                            class="form-control"
-                        />
-                    </div>
-                    <div class="form-text"></div>
-                </div>
-
                 <!-- Network -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $tc("network", 2) }}
-                    </label>
-
-                    <div v-if="networkList.length === 0 && service.networks && service.networks.length > 0" class="text-warning mb-3">
+                <div class="config-field">
+                    <label class="config-label">{{ $tc("network", 2) }}</label>
+                    <div v-if="networkList.length === 0 && service.networks && service.networks.length > 0" class="config-warning">
                         {{ $t("NoNetworksAvailable") }}
                     </div>
-
                     <ArraySelect name="networks" :display-name="$t('network')" placeholder="Network Name" :options="networkList" />
                 </div>
 
                 <!-- Depends on -->
-                <div class="mb-4">
-                    <label class="form-label">
-                        {{ $t("dependsOn") }}
-                    </label>
+                <div class="config-field">
+                    <label class="config-label">{{ $t("dependsOn") }}</label>
                     <ArrayInput name="depends_on" :display-name="$t('dependsOn')" :placeholder="$t(`containerName`)" />
                 </div>
             </div>
@@ -136,13 +96,10 @@
 
 <script>
 import { defineComponent } from "vue";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { parseDockerPort } from "../../../common/util-common";
 
 export default defineComponent({
-    components: {
-        FontAwesomeIcon,
-    },
+    components: {},
     props: {
         name: {
             type: String,
@@ -182,13 +139,13 @@ export default defineComponent({
             return list;
         },
 
-        bgStyle() {
+        statusClass() {
             if (this.status === "running" || this.status === "healthy") {
-                return "bg-primary";
+                return "status-running";
             } else if (this.status === "unhealthy") {
-                return "bg-danger";
+                return "status-exited";
             } else {
-                return "bg-secondary";
+                return "status-inactive";
             }
         },
 
@@ -295,22 +252,124 @@ export default defineComponent({
 <style scoped lang="scss">
 @import "../styles/vars";
 
-.container {
-    .image {
-        font-size: 0.8rem;
-        color: #6c757d;
-        .tag {
-            color: #33383b;
-        }
-    }
+.container-card {
+    background-color: $dark-bg3;
+    border: 1px solid $dark-border-color;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 160ms ease;
 
-    .function {
-        align-content: center;
-        display: flex;
-        height: 100%;
-        width: 100%;
-        align-items: center;
-        justify-content: end;
-    }
+    &:hover { border-color: rgba(255, 255, 255, 0.08); }
+}
+
+// ======================
+// Header
+// ======================
+.container-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    flex-wrap: wrap;
+}
+
+.container-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.container-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: $dark-font-color;
+    letter-spacing: -0.01em;
+}
+
+.container-image {
+    font-size: 12px;
+    color: $dark-font-color3;
+    font-family: var(--font-mono);
+}
+
+.image-name { color: $dark-font-color2; }
+.image-sep  { color: $dark-font-color3; margin: 0 1px; }
+.image-tag  { color: $dark-font-color3; }
+
+// ======================
+// Meta (view mode)
+// ======================
+.container-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.status-badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    &.status-running  { background-color: rgba(#4ade80, 0.12); color: #4ade80; }
+    &.status-exited   { background-color: rgba(#f87171, 0.12); color: #f87171; }
+    &.status-inactive { background-color: rgba(255, 255, 255, 0.06); color: $dark-font-color3; }
+}
+
+.port-badge {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 2px 7px;
+    border-radius: 4px;
+    background-color: $dark-bg2;
+    border: 1px solid $dark-border-color;
+    color: $dark-font-color2;
+    text-decoration: none;
+    transition: border-color 120ms ease, color 120ms ease;
+
+    &:hover { border-color: rgba(255,255,255,0.15); color: $dark-font-color; }
+}
+
+// ======================
+// Edit actions
+// ======================
+.container-edit-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+// ======================
+// Config (expanded)
+// ======================
+.container-config {
+    padding: 14px;
+    border-top: 1px solid $dark-border-color;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background-color: rgba(255,255,255,0.01);
+}
+
+.config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.config-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: $dark-font-color3;
+}
+
+.config-warning {
+    font-size: 12px;
+    color: $warning;
+    margin-bottom: 6px;
 }
 </style>

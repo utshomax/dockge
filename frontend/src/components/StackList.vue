@@ -1,49 +1,25 @@
 <template>
-    <div class="shadow-box mb-3" :style="boxStyle">
-        <div class="list-header">
-            <div class="header-top">
-                <!-- TODO -->
-                <button v-if="false" class="btn btn-outline-normal ms-2" :class="{ 'active': selectMode }" type="button" @click="selectMode = !selectMode">
-                    {{ $t("Select") }}
+    <div class="stack-list-wrapper" :style="boxStyle">
+        <!-- Search row -->
+        <div class="search-row">
+            <div class="search-field">
+                <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <form>
+                    <input v-model="searchText" class="search-input" autocomplete="off" :placeholder="$t('Search...')" />
+                </form>
+                <button v-if="searchText != ''" class="clear-btn" @click="clearSearchText">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
                 </button>
-
-                <div class="placeholder"></div>
-                <div class="search-wrapper">
-                    <a v-if="searchText == ''" class="search-icon">
-                        <font-awesome-icon icon="search" />
-                    </a>
-                    <a v-if="searchText != ''" class="search-icon" style="cursor: pointer" @click="clearSearchText">
-                        <font-awesome-icon icon="times" />
-                    </a>
-                    <form>
-                        <input v-model="searchText" class="form-control search-input" autocomplete="off" />
-                    </form>
-                </div>
-            </div>
-
-            <!-- TODO -->
-            <div v-if="false" class="header-filter">
-                <!--<StackListFilter :filterState="filterState" @update-filter="updateFilter" />-->
-            </div>
-
-            <!-- TODO: Selection Controls -->
-            <div v-if="selectMode && false" class="selection-controls px-2 pt-2">
-                <input
-                    v-model="selectAll"
-                    class="form-check-input select-input"
-                    type="checkbox"
-                />
-
-                <button class="btn-outline-normal" @click="pauseDialog"><font-awesome-icon icon="pause" size="sm" /> {{ $t("Pause") }}</button>
-                <button class="btn-outline-normal" @click="resumeSelected"><font-awesome-icon icon="play" size="sm" /> {{ $t("Resume") }}</button>
-
-                <span v-if="selectedStackCount > 0">
-                    {{ $t("selectedStackCount", [ selectedStackCount ]) }}
-                </span>
             </div>
         </div>
-        <div ref="stackList" class="stack-list" :class="{ scrollbar: scrollbar }" :style="stackListStyle">
-            <div v-if="Object.keys(sortedStackList).length === 0" class="text-center mt-3">
+
+        <!-- Stack items -->
+        <div ref="stackList" class="stack-items" :class="{ scrollbar: scrollbar }" :style="stackListStyle">
+            <div v-if="Object.keys(sortedStackList).length === 0" class="empty-state">
                 <router-link to="/compose">{{ $t("addFirstStackMsg") }}</router-link>
             </div>
 
@@ -75,7 +51,6 @@ export default {
         StackListItem,
     },
     props: {
-        /** Should the scrollbar be shown */
         scrollbar: {
             type: Boolean,
         },
@@ -92,97 +67,63 @@ export default {
                 status: null,
                 active: null,
                 tags: null,
-            }
+            },
         };
     },
     computed: {
-        /**
-         * Improve the sticky appearance of the list by increasing its
-         * height as user scrolls down.
-         * Not used on mobile.
-         * @returns {object} Style for stack list
-         */
         boxStyle() {
-            if (window.innerWidth > 550) {
-                return {
-                    height: `calc(100vh - 160px + ${this.windowTop}px)`,
-                };
-            } else {
-                return {
-                    height: "calc(100vh - 160px)",
-                };
-            }
-
+            return {
+                flex: 1,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+            };
         },
 
-        /**
-         * Returns a sorted list of stacks based on the applied filters and search text.
-         * @returns {Array} The sorted list of stacks.
-         */
         sortedStackList() {
             let result = Object.values(this.$root.completeStackList);
 
-            result = result.filter(stack => {
-                // filter by search text
-                // finds stack name, tag name or tag value
+            result = result.filter((stack) => {
                 let searchTextMatch = true;
                 if (this.searchText !== "") {
                     const loweredSearchText = this.searchText.toLowerCase();
                     searchTextMatch =
-                        stack.name.toLowerCase().includes(loweredSearchText)
-                        || stack.tags.find(tag => tag.name.toLowerCase().includes(loweredSearchText)
-                            || tag.value?.toLowerCase().includes(loweredSearchText));
+                        stack.name.toLowerCase().includes(loweredSearchText) ||
+                        stack.tags.find(
+                            (tag) =>
+                                tag.name.toLowerCase().includes(loweredSearchText) ||
+                                tag.value?.toLowerCase().includes(loweredSearchText)
+                        );
                 }
-
-                // filter by active
                 let activeMatch = true;
                 if (this.filterState.active != null && this.filterState.active.length > 0) {
                     activeMatch = this.filterState.active.includes(stack.active);
                 }
-
-                // filter by tags
                 let tagsMatch = true;
                 if (this.filterState.tags != null && this.filterState.tags.length > 0) {
-                    tagsMatch = stack.tags.map(tag => tag.tag_id) // convert to array of tag IDs
-                        .filter(stackTagId => this.filterState.tags.includes(stackTagId)) // perform Array Intersaction between filter and stack's tags
-                        .length > 0;
+                    tagsMatch =
+                        stack.tags
+                            .map((tag) => tag.tag_id)
+                            .filter((stackTagId) => this.filterState.tags.includes(stackTagId)).length > 0;
                 }
-
                 return searchTextMatch && activeMatch && tagsMatch;
             });
 
             result.sort((m1, m2) => {
+                if (m1.isManagedByDockge && !m2.isManagedByDockge) return -1;
+                else if (!m1.isManagedByDockge && m2.isManagedByDockge) return 1;
 
-                // sort by managed by dockge
-                if (m1.isManagedByDockge && !m2.isManagedByDockge) {
-                    return -1;
-                } else if (!m1.isManagedByDockge && m2.isManagedByDockge) {
-                    return 1;
-                }
-
-                // sort by status
                 if (m1.status !== m2.status) {
-                    if (m2.status === RUNNING) {
-                        return 1;
-                    } else if (m1.status === RUNNING) {
-                        return -1;
-                    } else if (m2.status === EXITED) {
-                        return 1;
-                    } else if (m1.status === EXITED) {
-                        return -1;
-                    } else if (m2.status === CREATED_STACK) {
-                        return 1;
-                    } else if (m1.status === CREATED_STACK) {
-                        return -1;
-                    } else if (m2.status === CREATED_FILE) {
-                        return 1;
-                    } else if (m1.status === CREATED_FILE) {
-                        return -1;
-                    } else if (m2.status === UNKNOWN) {
-                        return 1;
-                    } else if (m1.status === UNKNOWN) {
-                        return -1;
-                    }
+                    if (m2.status === RUNNING) return 1;
+                    else if (m1.status === RUNNING) return -1;
+                    else if (m2.status === EXITED) return 1;
+                    else if (m1.status === EXITED) return -1;
+                    else if (m2.status === CREATED_STACK) return 1;
+                    else if (m1.status === CREATED_STACK) return -1;
+                    else if (m2.status === CREATED_FILE) return 1;
+                    else if (m1.status === CREATED_FILE) return -1;
+                    else if (m2.status === UNKNOWN) return 1;
+                    else if (m1.status === UNKNOWN) return -1;
                 }
                 return m1.name.localeCompare(m2.name);
             });
@@ -190,34 +131,22 @@ export default {
             return result;
         },
 
-        isDarkTheme() {
-            return document.body.classList.contains("dark");
-        },
-
         stackListStyle() {
-            //let listHeaderHeight = 107;
-            let listHeaderHeight = 60;
-
-            if (this.selectMode) {
-                listHeaderHeight += 42;
-            }
-
-            return {
-                "height": `calc(100% - ${listHeaderHeight}px)`
-            };
+            return { height: "calc(100% - 52px)", overflowY: "auto" };
         },
 
         selectedStackCount() {
             return Object.keys(this.selectedStacks).length;
         },
 
-        /**
-         * Determines if any filters are active.
-         * @returns {boolean} True if any filter is active, false otherwise.
-         */
         filtersActive() {
-            return this.filterState.status != null || this.filterState.active != null || this.filterState.tags != null || this.searchText !== "";
-        }
+            return (
+                this.filterState.status != null ||
+                this.filterState.active != null ||
+                this.filterState.tags != null ||
+                this.searchText !== ""
+            );
+        },
     },
     watch: {
         searchText() {
@@ -234,7 +163,6 @@ export default {
         selectAll() {
             if (!this.disableSelectAllWatcher) {
                 this.selectedStacks = {};
-
                 if (this.selectAll) {
                     this.sortedStackList.forEach((item) => {
                         this.selectedStacks[item.id] = true;
@@ -251,99 +179,39 @@ export default {
             }
         },
     },
-    mounted() {
-        window.addEventListener("scroll", this.onScroll);
-    },
-    beforeUnmount() {
-        window.removeEventListener("scroll", this.onScroll);
-    },
     methods: {
-        /**
-         * Handle user scroll
-         * @returns {void}
-         */
-        onScroll() {
-            if (window.top.scrollY <= 133) {
-                this.windowTop = window.top.scrollY;
-            } else {
-                this.windowTop = 133;
-            }
-        },
-
-        /**
-         * Clear the search bar
-         * @returns {void}
-         */
         clearSearchText() {
             this.searchText = "";
         },
-        /**
-         * Update the StackList Filter
-         * @param {object} newFilter Object with new filter
-         * @returns {void}
-         */
         updateFilter(newFilter) {
             this.filterState = newFilter;
         },
-        /**
-         * Deselect a stack
-         * @param {number} id ID of stack
-         * @returns {void}
-         */
         deselect(id) {
             delete this.selectedStacks[id];
         },
-        /**
-         * Select a stack
-         * @param {number} id ID of stack
-         * @returns {void}
-         */
         select(id) {
             this.selectedStacks[id] = true;
         },
-        /**
-         * Determine if stack is selected
-         * @param {number} id ID of stack
-         * @returns {bool} Is the stack selected?
-         */
         isSelected(id) {
             return id in this.selectedStacks;
         },
-        /**
-         * Disable select mode and reset selection
-         * @returns {void}
-         */
         cancelSelectMode() {
             this.selectMode = false;
             this.selectedStacks = {};
         },
-        /**
-         * Show dialog to confirm pause
-         * @returns {void}
-         */
         pauseDialog() {
             this.$refs.confirmPause.show();
         },
-        /**
-         * Pause each selected stack
-         * @returns {void}
-         */
         pauseSelected() {
             Object.keys(this.selectedStacks)
-                .filter(id => this.$root.stackList[id].active)
-                .forEach(id => this.$root.getSocket().emit("pauseStack", id, () => {}));
-
+                .filter((id) => this.$root.stackList[id].active)
+                .forEach((id) => this.$root.getSocket().emit("pauseStack", id, () => {}));
             this.cancelSelectMode();
         },
-        /**
-         * Resume each selected stack
-         * @returns {void}
-         */
         resumeSelected() {
             Object.keys(this.selectedStacks)
-                .filter(id => !this.$root.stackList[id].active)
-                .forEach(id => this.$root.getSocket().emit("resumeStack", id, () => {}));
-
+                .filter((id) => !this.$root.stackList[id].active)
+                .forEach((id) => this.$root.getSocket().emit("resumeStack", id, () => {}));
             this.cancelSelectMode();
         },
     },
@@ -353,95 +221,89 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-.shadow-box {
-    height: calc(100vh - 150px);
-    position: sticky;
-    top: 10px;
+.stack-list-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
 }
 
-.small-padding {
-    padding-left: 5px !important;
-    padding-right: 5px !important;
+// =====================
+// Search
+// =====================
+.search-row {
+    padding: 10px 10px 8px;
+    flex-shrink: 0;
 }
 
-.list-header {
-    border-bottom: 1px solid #dee2e6;
-    border-radius: 10px 10px 0 0;
-    margin: -10px;
-    margin-bottom: 10px;
-    padding: 10px;
+.search-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid $dark-border-color;
+    border-radius: 5px;
+    padding: 5px 8px;
+    transition: border-color 140ms ease;
 
-    .dark & {
-        background-color: $dark-header-bg;
-        border-bottom: 0;
+    &:focus-within {
+        border-color: rgba(255, 255, 255, 0.2);
     }
-}
-
-.header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header-filter {
-    display: flex;
-    align-items: center;
-}
-
-@media (max-width: 770px) {
-    .list-header {
-        margin: -20px;
-        margin-bottom: 10px;
-        padding: 5px;
-    }
-}
-
-.search-wrapper {
-    display: flex;
-    align-items: center;
 }
 
 .search-icon {
-    padding: 10px;
-    color: #c0c0c0;
+    color: $dark-font-color3;
+    flex-shrink: 0;
+}
 
-    // Clear filter button (X)
-    svg[data-icon="times"] {
-        cursor: pointer;
-        transition: all ease-in-out 0.1s;
-
-        &:hover {
-            opacity: 0.5;
-        }
-    }
+form {
+    flex: 1;
 }
 
 .search-input {
-    max-width: 15em;
-}
-
-.stack-item {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: $dark-font-color;
+    font-size: 13px;
     width: 100%;
+    font-family: var(--font-sans);
+
+    &::placeholder { color: $dark-font-color3; }
 }
 
-.tags {
-    margin-top: 4px;
-    padding-left: 67px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0;
-}
-
-.bottom-style {
-    padding-left: 67px;
-    margin-top: 5px;
-}
-
-.selection-controls {
-    margin-top: 5px;
+.clear-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: $dark-font-color3;
     display: flex;
     align-items: center;
-    gap: 10px;
+    transition: color 120ms ease;
+    flex-shrink: 0;
+
+    &:hover { color: $dark-font-color; }
 }
 
+// =====================
+// Stack items
+// =====================
+.stack-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 6px 12px;
+}
+
+.empty-state {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 13px;
+
+    a {
+        color: $dark-font-color2;
+        text-decoration: none;
+        &:hover { color: $dark-font-color; }
+    }
+}
 </style>

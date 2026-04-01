@@ -12,10 +12,10 @@
             :readonly="readonly"
         >
 
-        <a v-if="visibility == 'password'" class="btn btn-outline-primary" @click="showInput()">
+        <a v-if="visibility == 'password'" class="btn linear-btn-outline" @click="showInput()">
             <font-awesome-icon icon="eye" />
         </a>
-        <a v-if="visibility == 'text'" class="btn btn-outline-primary" @click="hideInput()">
+        <a v-if="visibility == 'text'" class="btn linear-btn-outline" @click="hideInput()">
             <font-awesome-icon icon="eye-slash" />
         </a>
     </div>

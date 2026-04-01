@@ -1,44 +1,37 @@
 <template>
-    <div>
-        <h5>{{ $t("Internal Networks") }}</h5>
-        <ul class="list-group">
-            <li v-for="(networkRow, index) in networkList" :key="index" class="list-group-item">
-                <input v-model="networkRow.key" type="text" class="no-bg domain-input" :placeholder="$t(`Network name...`)" />
-                <font-awesome-icon icon="times" class="action remove ms-2 me-3 text-danger" @click="remove(index)" />
-            </li>
-        </ul>
+    <div class="networks-section">
+        <div class="network-group-title">{{ $t("Internal Networks") }}</div>
+        
+        <div v-if="networkList.length > 0" class="linear-list">
+            <div v-for="(networkRow, index) in networkList" :key="index" class="linear-list-item">
+                <input v-model="networkRow.key" type="text" class="domain-input" :placeholder="$t(`Network name...`)" />
+                <button class="remove-btn" @click="remove(index)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+        </div>
 
-        <button class="btn btn-normal btn-sm mt-3 me-2" @click="addField">{{ $t("addInternalNetwork") }}</button>
+        <button class="btn linear-btn-ghost mt-3 me-2" @click="addField">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            {{ $t("addInternalNetwork") }}
+        </button>
 
-        <h5 class="mt-3">{{ $t("External Networks") }}</h5>
+        <div class="network-group-title mt-4">{{ $t("External Networks") }}</div>
 
-        <div v-if="externalNetworkList.length === 0">
+        <div v-if="externalNetworkList.length === 0" class="empty-state">
             {{ $t("No External Networks") }}
         </div>
 
-        <div v-for="(networkName, index) in externalNetworkList" :key="networkName" class="form-check form-switch my-3">
-            <input :id=" 'external-network' + index" v-model="selectedExternalList[networkName]" class="form-check-input" type="checkbox">
-
-            <label class="form-check-label" :for=" 'external-network' +index">
+        <div class="external-networks-list mt-2">
+            <span
+                v-for="(networkName, index) in externalNetworkList"
+                :key="networkName"
+                class="network-badge"
+                :class="{ 'active': selectedExternalList[networkName] }"
+                @click="selectedExternalList[networkName] = !selectedExternalList[networkName]"
+            >
                 {{ networkName }}
-            </label>
-
-            <span v-if="false" class="text-danger ms-2 delete">Delete</span>
-        </div>
-
-        <div v-if="false" class="input-group mb-3">
-            <input
-                placeholder="New external network name..."
-                class="form-control"
-                @keyup.enter="createExternelNetwork"
-            />
-            <button class="btn btn-normal btn-sm  me-2" type="button">
-                {{ $t("createExternalNetwork") }}
-            </button>
-        </div>
-
-        <div v-if="false">
-            <button class="btn btn-primary btn-sm mt-3 me-2" @click="applyToYAML">{{ $t("applyToYAML") }}</button>
+            </span>
         </div>
     </div>
 </template>
@@ -197,31 +190,102 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-.list-group {
-    background-color: $dark-bg2;
+.linear-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 
-    li {
+    .linear-list-item {
         display: flex;
         align-items: center;
-        padding: 10px 0 10px 10px;
+        background-color: $dark-bg2;
+        border: 1px solid $dark-border-color;
+        border-radius: 6px;
+        padding: 6px 12px;
+        transition: border-color 0.2s ease;
+
+        &:focus-within {
+            border-color: rgba(255, 255, 255, 0.25);
+        }
 
         .domain-input {
             flex-grow: 1;
-            background-color: $dark-bg2;
+            background-color: transparent;
             border: none;
             color: $dark-font-color;
             outline: none;
+            font-size: 13px;
 
             &::placeholder {
-                color: #1d2634;
+                color: rgba(255, 255, 255, 0.2);
+            }
+        }
+        
+        .remove-btn {
+            background: transparent;
+            border: none;
+            color: #f87171;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            &:hover {
+                opacity: 1;
             }
         }
     }
 }
 
-.delete {
-    text-decoration: underline;
+.network-group-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: $dark-font-color3;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.network-label {
     font-size: 13px;
+    color: $dark-font-color;
     cursor: pointer;
+}
+
+.external-networks-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.network-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background-color: $dark-bg2;
+    color: $dark-font-color3;
+    border: 1px solid $dark-border-color;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+
+    &:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        color: $dark-font-color2;
+    }
+
+    &.active {
+        background-color: #f3f4f6;
+        color: #111827;
+        border-color: transparent;
+        font-weight: 500;
+    }
+}
+
+.empty-state {
+    font-size: 13px;
+    color: $dark-font-color3;
+    padding: 8px 0;
 }
 </style>

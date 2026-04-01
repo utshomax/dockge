@@ -1,26 +1,51 @@
-$primary: #74c2ff;
-$danger: #dc3545;
-$warning: #f8a306;
-$maintenance: #1747f5;
-$link-color: #111;
-$border-radius: 50rem;
+// =============================================================================
+// Design Tokens — Linear-style minimal dark UI
+// =============================================================================
 
-$highlight: #9dd1ff;
-$highlight-white: #e7faec;
+// Brand
+$primary: #ffffff;
+$highlight: #ffffff;
+$highlight-white: rgba(255, 255, 255, 0.06);
 
-$dark-font-color: #b1b8c0;
-$dark-font-color2: #020b05;
-$dark-font-color3: #575c62;
-$dark-bg: #0d1117;
-$dark-bg2: #070a10;
-$dark-border-color: #1d2634;
-$dark-header-bg: #161b22;
+// Status Colors (minimal usage only)
+$color-running: #4ade80;
+$color-exited:  #f87171;
+$color-inactive: #6b7280;
+$color-warning:  #fbbf24;
+$color-maintenance: #6366f1;
 
-$easing-in: cubic-bezier(0.54, 0.78, 0.55, 0.97);
-$easing-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-$easing-in-out: cubic-bezier(0.79, 0.14, 0.15, 0.86);
+$danger:      #f87171;
+$warning:     #fbbf24;
+$maintenance: #6366f1;
 
-$dropdown-border-radius: 0.5rem;
+// Dark Theme Surfaces
+$dark-bg:           #09090b;  // page background
+$dark-bg2:          #0f0f11;  // sidebar / elevated
+$dark-bg3:          #141416;  // card / panel
+$dark-header-bg:    #0f0f11;  // header bar
 
-$primary-gradient: linear-gradient(135deg, #74c2ff 0%, #74c2ff 75%, #86e6a9);
-$primary-gradient-active: linear-gradient(135deg, #74c2ff 0%, #74c2ff 50%, #86e6a9);
+// Borders
+$dark-border-color: #27272a;  // subtle lines
+
+// Typography
+$dark-font-color:   #e4e4e7;  // primary
+$dark-font-color2:  #a1a1aa;  // secondary / muted
+$dark-font-color3:  #52525b;  // placeholder / hint
+
+// Link color
+$link-color: $dark-font-color;
+
+// Geometry — sharp, not pill
+$border-radius:         6px;
+$border-radius-sm:      4px;
+$border-radius-lg:      8px;
+$dropdown-border-radius: 8px;
+
+// Easing
+$easing-in:     cubic-bezier(0.16, 1, 0.3, 1);
+$easing-out:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
+$easing-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+// Gradients — none used unless essential
+$primary-gradient:        none;
+$primary-gradient-active: none;

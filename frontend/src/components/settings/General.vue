@@ -49,7 +49,7 @@
                         class="form-control"
                         :placeholder="$t(`CurrentHostname`)"
                     />
-                    <button class="btn btn-outline-primary" type="button" @click="autoGetPrimaryHostname">
+                    <button class="btn linear-btn-outline" type="button" @click="autoGetPrimaryHostname">
                         {{ $t("autoGet") }}
                     </button>
                 </div>
@@ -59,7 +59,7 @@
 
             <!-- Save Button -->
             <div>
-                <button class="btn btn-primary" type="submit">
+                <button class="btn linear-btn-primary" type="submit">
                     {{ $t("Save") }}
                 </button>
             </div>

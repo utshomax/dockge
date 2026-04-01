@@ -19,7 +19,7 @@
                 <div class="my-4">
                     <!-- Save Button -->
                     <div>
-                        <button class="btn btn-primary" type="submit">
+                        <button class="btn linear-btn-primary" type="submit">
                             {{ $t("Save") }}
                         </button>
                     </div>

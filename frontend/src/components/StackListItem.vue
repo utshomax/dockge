@@ -1,9 +1,9 @@
 <template>
-    <router-link :to="url" :class="{ 'dim' : !stack.isManagedByDockge }" class="item">
-        <Uptime :stack="stack" :fixed-width="true" class="me-2" />
-        <div class="title">
-            <span>{{ stackName }}</span>
-            <div v-if="$root.agentCount > 1" class="endpoint">{{ endpointDisplay }}</div>
+    <router-link :to="url" class="stack-item" :class="{ 'dim': !stack.isManagedByDockge, 'active': isActiveRoute }">
+        <Uptime :stack="stack" :fixed-width="true" class="item-dot" />
+        <div class="item-info">
+            <span class="item-name">{{ stackName }}</span>
+            <span v-if="$root.agentCount > 1" class="item-endpoint">{{ endpointDisplay }}</span>
         </div>
     </router-link>
 </template>
@@ -13,38 +13,32 @@ import Uptime from "./Uptime.vue";
 
 export default {
     components: {
-        Uptime
+        Uptime,
     },
     props: {
-        /** Stack this represents */
         stack: {
             type: Object,
             default: null,
         },
-        /** If the user is in select mode */
         isSelectMode: {
             type: Boolean,
             default: false,
         },
-        /** How many ancestors are above this stack */
         depth: {
             type: Number,
             default: 0,
         },
-        /** Callback to determine if stack is selected */
         isSelected: {
             type: Function,
-            default: () => {}
+            default: () => {},
         },
-        /** Callback fired when stack is selected */
         select: {
             type: Function,
-            default: () => {}
+            default: () => {},
         },
-        /** Callback fired when stack is deselected */
         deselect: {
             type: Function,
-            default: () => {}
+            default: () => {},
         },
     },
     data() {
@@ -59,58 +53,14 @@ export default {
         url() {
             if (this.stack.endpoint) {
                 return `/compose/${this.stack.name}/${this.stack.endpoint}`;
-            } else {
-                return `/compose/${this.stack.name}`;
             }
-        },
-        depthMargin() {
-            return {
-                marginLeft: `${31 * this.depth}px`,
-            };
+            return `/compose/${this.stack.name}`;
         },
         stackName() {
             return this.stack.name;
-        }
-    },
-    watch: {
-        isSelectMode() {
-            // TODO: Resize the heartbeat bar, but too slow
-            // this.$refs.heartbeatBar.resize();
-        }
-    },
-    beforeMount() {
-
-    },
-    methods: {
-        /**
-         * Changes the collapsed value of the current stack and saves
-         * it to local storage
-         * @returns {void}
-         */
-        changeCollapsed() {
-            this.isCollapsed = !this.isCollapsed;
-
-            // Save collapsed value into local storage
-            let storage = window.localStorage.getItem("stackCollapsed");
-            let storageObject = {};
-            if (storage !== null) {
-                storageObject = JSON.parse(storage);
-            }
-            storageObject[`stack_${this.stack.id}`] = this.isCollapsed;
-
-            window.localStorage.setItem("stackCollapsed", JSON.stringify(storageObject));
         },
-
-        /**
-         * Toggle selection of stack
-         * @returns {void}
-         */
-        toggleSelection() {
-            if (this.isSelected(this.stack.id)) {
-                this.deselect(this.stack.id);
-            } else {
-                this.select(this.stack.id);
-            }
+        isActiveRoute() {
+            return this.$route.path === this.url;
         },
     },
 };
@@ -119,63 +69,64 @@ export default {
 <style lang="scss" scoped>
 @import "../styles/vars.scss";
 
-.small-padding {
-    padding-left: 5px !important;
-    padding-right: 5px !important;
-}
-
-.collapse-padding {
-    padding-left: 8px !important;
-    padding-right: 2px !important;
-}
-
-.item {
-    text-decoration: none;
+.stack-item {
     display: flex;
     align-items: center;
-    min-height: 52px;
-    border-radius: 10px;
-    transition: all ease-in-out 0.15s;
-    width: 100%;
+    gap: 8px;
     padding: 5px 8px;
-    &.disabled {
-        opacity: 0.3;
-    }
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 120ms ease;
+    cursor: pointer;
+    width: 100%;
+    min-height: 30px;
+
     &:hover {
-        background-color: $highlight-white;
+        background-color: rgba(255, 255, 255, 0.06);
     }
+
     &.active {
-        background-color: #cdf8f4;
+        background-color: rgba(255, 255, 255, 0.08);
+
+        .item-name {
+            color: $dark-font-color;
+        }
     }
-    .title {
-        margin-top: -4px;
+
+    &.dim { opacity: 0.4; }
+}
+
+.item-dot {
+    flex-shrink: 0;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+
+.item-name {
+    font-size: 13px;
+    font-weight: 450;
+    color: $dark-font-color2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    transition: color 120ms ease;
+
+    .stack-item:hover & {
+        color: $dark-font-color;
     }
-    .endpoint {
-        font-size: 12px;
-        color: $dark-font-color3;
-    }
 }
 
-.collapsed {
-    transform: rotate(-90deg);
+.item-endpoint {
+    font-size: 11px;
+    color: $dark-font-color3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-
-.animated {
-    transition: all 0.2s $easing-in;
-}
-
-.select-input-wrapper {
-    float: left;
-    margin-top: 15px;
-    margin-left: 3px;
-    margin-right: 10px;
-    padding-left: 4px;
-    position: relative;
-    z-index: 15;
-}
-
-.dim {
-    opacity: 0.5;
-}
-
 </style>
