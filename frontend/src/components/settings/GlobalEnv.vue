@@ -12,6 +12,7 @@
                         dark="true"
                         tab="true"
                         :hasFocus="editorFocus"
+                        :scrollIntoView="false"
                         @change="onChange"
                     />
                 </div>

@@ -189,7 +189,7 @@
                                 :tab="true"
                                 :disabled="!isEditMode"
                                 :hasFocus="editorFocus"
-                                @change="yamlCodeChange"
+                                :scrollIntoView="false"
                             />
                         </div>
                         <div v-if="isEditMode && yamlError" class="yaml-error">
@@ -211,7 +211,7 @@
                                 :tab="true"
                                 :disabled="!isEditMode"
                                 :hasFocus="editorFocus"
-                                @change="yamlCodeChange"
+                                :scrollIntoView="false"
                             />
                         </div>
                     </div>

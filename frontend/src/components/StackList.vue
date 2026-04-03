@@ -7,13 +7,20 @@
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <form>
-                    <input v-model="searchText" class="search-input" autocomplete="off" :placeholder="$t('Search...')" />
+                    <input ref="searchInput" v-model="searchText" class="search-input" autocomplete="off" :placeholder="$t('Search...') + ' (Press /)'" />
                 </form>
                 <button v-if="searchText != ''" class="clear-btn" @click="clearSearchText">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
                 </button>
+            </div>
+
+            <!-- Filter tabs -->
+            <div class="filter-tabs">
+                <button class="filter-tab" :class="{ active: filterState.active == null }" @click="updateFilter({ ...filterState, active: null })">{{ $t("All") || "All" }}</button>
+                <button class="filter-tab" :class="{ active: filterState.active != null && filterState.active[0] === true }" @click="updateFilter({ ...filterState, active: [true] })">{{ $t("Active") || "Active" }}</button>
+                <button class="filter-tab" :class="{ active: filterState.active != null && filterState.active[0] === false }" @click="updateFilter({ ...filterState, active: [false] })">{{ $t("Inactive") || "Inactive" }}</button>
             </div>
         </div>
 
@@ -69,6 +76,12 @@ export default {
                 tags: null,
             },
         };
+    },
+    mounted() {
+        window.addEventListener("keydown", this.handleGlobalKeydown);
+    },
+    beforeUnmount() {
+        window.removeEventListener("keydown", this.handleGlobalKeydown);
     },
     computed: {
         boxStyle() {
@@ -180,6 +193,21 @@ export default {
         },
     },
     methods: {
+        handleGlobalKeydown(e) {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+            const isInput = activeTag === "input" || activeTag === "textarea" || (document.activeElement && document.activeElement.isContentEditable);
+
+            if (e.key === "/" && !isInput) {
+                e.preventDefault();
+                this.$refs.searchInput?.focus();
+            } else if (e.key === "Escape" && document.activeElement === this.$refs.searchInput) {
+                this.clearSearchText();
+                this.$refs.searchInput?.blur();
+            } else if (e.key === "c" && !isInput) {
+                e.preventDefault();
+                this.$router.push("/compose");
+            }
+        },
         clearSearchText() {
             this.searchText = "";
         },
@@ -248,6 +276,39 @@ export default {
 
     &:focus-within {
         border-color: rgba(255, 255, 255, 0.2);
+    }
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 4px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.filter-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: $dark-font-color3;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 6px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 140ms ease;
+
+    &:hover {
+        color: $dark-font-color;
+    }
+
+    &.active {
+        background: rgba(255, 255, 255, 0.08);
+        color: $dark-font-color;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 }
 
