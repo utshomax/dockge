@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim
 RUN apt update && apt install --yes --no-install-recommends \
     curl \
     ca-certificates \
+    git \
     gnupg \
     unzip \
     dumb-init \

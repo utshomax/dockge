@@ -2,7 +2,7 @@ services:
   dockge:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
       target: release
     restart: unless-stopped
     ports:
