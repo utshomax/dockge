@@ -34,6 +34,24 @@ RUN apt-get update && apt-get install --yes --no-install-recommends \
 ############################################
 # Build Dependencies
 ############################################
+FROM base AS build_full
+WORKDIR /app
+COPY --chown=node:node ./package.json ./package.json
+COPY --chown=node:node ./package-lock.json ./package-lock.json
+RUN npm ci
+
+############################################
+# Build Frontend
+############################################
+FROM build_full AS build_frontend
+WORKDIR /app
+COPY --chown=node:node ./common ./common
+COPY --chown=node:node ./frontend ./frontend
+RUN npm run build:frontend
+
+############################################
+# Production Dependencies
+############################################
 FROM base AS build
 WORKDIR /app
 COPY --chown=node:node ./package.json ./package.json
@@ -48,6 +66,7 @@ WORKDIR /app
 COPY --chown=node:node --from=build_healthcheck /app/extra/healthcheck /app/extra/healthcheck
 COPY --from=build /app/node_modules /app/node_modules
 COPY --chown=node:node . .
+COPY --chown=node:node --from=build_frontend /app/frontend-dist ./frontend-dist
 RUN mkdir -p ./data
 
 ENV UV_USE_IO_URING=0

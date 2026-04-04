@@ -33,11 +33,6 @@
                         {{ $t("editStack") }}
                     </button>
 
-                    <button v-if="!isEditMode && !isAdd && github.repoUrl" class="btn linear-btn-outline" :disabled="processing" @click="deployFromGitHub">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                        Redeploy from GitHub
-                    </button>
-
                     <button v-if="!isEditMode && !active" class="btn btn-success" :disabled="processing" @click="startStack">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         {{ $t("startStack") }}
@@ -165,43 +160,63 @@
                     </div>
 
                     <!-- GitHub -->
-                    <div v-if="isEditMode" class="section">
+                    <div v-if="!isAdd || isEditMode" class="section">
                         <div class="section-label">GitHub</div>
                         <div class="panel big-panel">
-                            <div class="field-row">
-                                <label class="field-label">Repository URL</label>
-                                <input v-model="github.repoUrl" class="form-control" placeholder="https://github.com/owner/repo" />
-                            </div>
-                            <div class="field-row mt-2">
-                                <label class="field-label">PAT Token (optional)</label>
-                                <input v-model="github.pat" type="password" class="form-control"
-                                       :placeholder="github.hasPat ? '●●●●●● (stored)' : 'ghp_...'" />
-                            </div>
-                            <div class="field-row mt-2" style="display:flex; gap:6px">
-                                <select v-model="github.branch" class="form-select">
-                                    <option v-for="b in github.branches" :key="b" :value="b">{{ b }}</option>
-                                </select>
-                                <button class="btn linear-btn-outline" :disabled="!github.repoUrl || github.fetchingBranches"
-                                        @click="fetchGitHubBranches">
-                                    {{ github.fetchingBranches ? '…' : 'Fetch Branches' }}
+                            <!-- View mode: summary + redeploy -->
+                            <template v-if="!isEditMode">
+                                <div v-if="github.repoUrl" class="field-row">
+                                    <div style="font-size:0.85em; opacity:0.7; margin-bottom:6px;">
+                                        {{ github.repoUrl }} @ {{ github.branch }}
+                                        <span v-if="github.composePath"> · {{ github.composePath }}</span>
+                                    </div>
+                                    <button class="btn linear-btn-outline" :disabled="processing" @click="deployFromGitHub">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                                        Redeploy from GitHub
+                                    </button>
+                                </div>
+                                <div v-else style="font-size:0.85em; opacity:0.5;">
+                                    No GitHub source configured. <a href="#" @click.prevent="enableEditMode">Edit stack</a> to connect a repository.
+                                </div>
+                            </template>
+
+                            <!-- Edit mode: full config form -->
+                            <template v-else>
+                                <div class="field-row">
+                                    <label class="field-label">Repository URL</label>
+                                    <input v-model="github.repoUrl" class="form-control" placeholder="https://github.com/owner/repo" />
+                                </div>
+                                <div class="field-row mt-2">
+                                    <label class="field-label">PAT Token (optional)</label>
+                                    <input v-model="github.pat" type="password" class="form-control"
+                                           :placeholder="github.hasPat ? '●●●●●● (stored)' : 'ghp_...'" />
+                                </div>
+                                <div class="field-row mt-2" style="display:flex; gap:6px">
+                                    <select v-model="github.branch" class="form-select">
+                                        <option v-for="b in github.branches" :key="b" :value="b">{{ b }}</option>
+                                    </select>
+                                    <button class="btn linear-btn-outline" :disabled="!github.repoUrl || github.fetchingBranches"
+                                            @click="fetchGitHubBranches">
+                                        {{ github.fetchingBranches ? '…' : 'Fetch Branches' }}
+                                    </button>
+                                </div>
+                                <div class="field-row mt-2">
+                                    <label class="field-label">Compose file path (optional)</label>
+                                    <input v-model="github.composePath" class="form-control" placeholder="Auto-detect (e.g. infra/docker-compose.prod.yml)" />
+                                </div>
+                                <!-- New stack: load YAML into editor -->
+                                <button v-if="isAdd && github.branch" class="btn linear-btn-outline mt-2"
+                                        :disabled="github.loadingCompose" @click="loadYamlFromGitHub">
+                                    {{ github.loadingCompose ? 'Loading…' : 'Load YAML from Branch' }}
                                 </button>
-                            </div>
-                            <div class="field-row mt-2">
-                                <label class="field-label">Compose file path (optional)</label>
-                                <input v-model="github.composePath" class="form-control" placeholder="Auto-detect (e.g. infra/docker-compose.prod.yml)" />
-                            </div>
-                            <!-- New stack: load YAML into editor -->
-                            <button v-if="isAdd && github.branch" class="btn linear-btn-outline mt-2"
-                                    :disabled="github.loadingCompose" @click="loadYamlFromGitHub">
-                                {{ github.loadingCompose ? 'Loading…' : 'Load YAML from Branch' }}
-                            </button>
-                            <!-- Existing stack: save config + deploy from branch -->
-                            <div v-if="!isAdd && github.branch" class="mt-2" style="display:flex; gap:6px">
-                                <button class="btn linear-btn-outline" @click="saveGitHubConfig">Save Config</button>
-                                <button class="btn linear-btn-primary" :disabled="processing" @click="deployFromGitHub">
-                                    Deploy from Branch
-                                </button>
-                            </div>
+                                <!-- Existing stack: save config + deploy from branch -->
+                                <div v-if="!isAdd && github.branch" class="mt-2" style="display:flex; gap:6px">
+                                    <button class="btn linear-btn-outline" @click="saveGitHubConfig">Save Config</button>
+                                    <button class="btn linear-btn-primary" :disabled="processing" @click="deployFromGitHub">
+                                        Deploy from Branch
+                                    </button>
+                                </div>
+                            </template>
                         </div>
                     </div>
 

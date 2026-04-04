@@ -23,3 +23,5 @@ services:
     environment:
       # Tell Dockge where is your stacks directory
       - DOCKGE_STACKS_DIR=/Users/utsho/Dev/personal/dockge/example-dir
+      # Allow frontend dev server (localhost:3000) to connect to backend (localhost:5001)
+      - UPTIME_KUMA_WS_ORIGIN_CHECK=bypass
