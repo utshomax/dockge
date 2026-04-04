@@ -69,6 +69,9 @@ export default {
             first: true,
             terminalInputBuffer: "",
             cursorPosition: 0,
+            resizeObserver: null,
+            resizeFrame: null,
+            resizeTimeout: null,
         };
     },
     created() {
@@ -87,6 +90,9 @@ export default {
             cursorBlink,
             cols: this.cols,
             rows: this.rows,
+            theme: {
+                background: "#000000",
+            },
         });
 
         if (this.mode === "mainTerminal") {
@@ -119,6 +125,7 @@ export default {
         });
 
         this.bind();
+        this.setupResizeObserver();
 
         // Create a new Terminal
         if (this.mode === "mainTerminal") {
@@ -141,12 +148,65 @@ export default {
 
     unmounted() {
         window.removeEventListener("resize", this.onResizeEvent); // Remove the resize event listener from the window object.
+        this.resizeObserver?.disconnect();
+        if (this.resizeFrame !== null) {
+            cancelAnimationFrame(this.resizeFrame);
+        }
+        if (this.resizeTimeout !== null) {
+            clearTimeout(this.resizeTimeout);
+        }
         this.$root.unbindTerminal(this.name);
         this.terminal.dispose();
         this.$refs.terminal?.removeEventListener('contextmenu', this.handleContextMenu);
     },
 
     methods: {
+        setupResizeObserver() {
+            if (typeof ResizeObserver === "undefined" || this.resizeObserver) {
+                return;
+            }
+
+            this.resizeObserver = new ResizeObserver(() => {
+                this.scheduleResizeSync();
+            });
+            this.resizeObserver.observe(this.$el);
+        },
+
+        scheduleResizeSync() {
+            if (this.resizeFrame !== null) {
+                cancelAnimationFrame(this.resizeFrame);
+            }
+            this.resizeFrame = requestAnimationFrame(() => {
+                this.resizeFrame = null;
+                this.updateTerminalSize();
+            });
+
+            if (this.resizeTimeout !== null) {
+                clearTimeout(this.resizeTimeout);
+            }
+            this.resizeTimeout = setTimeout(() => {
+                this.resizeTimeout = null;
+                this.updateTerminalSize();
+            }, 120);
+        },
+
+        canFitTerminal() {
+            if (!this.$el) {
+                return false;
+            }
+
+            const { width, height } = this.$el.getBoundingClientRect();
+            return width > 0 && height > 0;
+        },
+
+        emitTerminalResize() {
+            if (!this.terminal) {
+                return;
+            }
+
+            this.$root.emitAgent(this.endpoint, "terminalResize", this.name, this.terminal.rows, this.terminal.cols);
+        },
+
         bind(endpoint, name) {
             // Workaround: normally this.name should be set, but it is not sometimes, so we use the parameter, but eventually this.name and name must be the same name
             if (name) {
@@ -273,21 +333,23 @@ export default {
          * It then addes an event listener to the window object to listen for resize events and calls the fit method of the terminalFitAddOn.
          */
         updateTerminalSize() {
+            if (!this.terminal || !this.canFitTerminal()) {
+                return;
+            }
+
             if (!Object.hasOwn(this, "terminalFitAddOn")) {
                 this.terminalFitAddOn = new FitAddon();
                 this.terminal.loadAddon(this.terminalFitAddOn);
                 window.addEventListener("resize", this.onResizeEvent);
             }
             this.terminalFitAddOn.fit();
+            this.emitTerminalResize();
         },
         /**
          * Handles the resize event of the terminal component.
          */
         onResizeEvent() {
-            this.terminalFitAddOn.fit();
-            let rows = this.terminal.rows;
-            let cols = this.terminal.cols;
-            this.$root.emitAgent(this.endpoint, "terminalResize", this.name, rows, cols);
+            this.scheduleResizeSync();
         },
 
         /**
@@ -374,6 +436,10 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.shadow-box {
+    background-color: #000 !important;
+}
+
 .main-terminal {
     height: 100%;
 }
@@ -381,7 +447,10 @@ export default {
 
 <style lang="scss">
 .terminal {
-    background-color: black !important;
     height: 100%;
+}
+
+.xterm-viewport {
+    background-color: #000 !important;
 }
 </style>

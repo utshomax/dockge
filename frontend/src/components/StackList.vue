@@ -18,9 +18,9 @@
 
             <!-- Filter tabs -->
             <div class="filter-tabs">
-                <button class="filter-tab" :class="{ active: filterState.active == null }" @click="updateFilter({ ...filterState, active: null })">{{ $t("All") || "All" }}</button>
-                <button class="filter-tab" :class="{ active: filterState.active != null && filterState.active[0] === true }" @click="updateFilter({ ...filterState, active: [true] })">{{ $t("Active") || "Active" }}</button>
-                <button class="filter-tab" :class="{ active: filterState.active != null && filterState.active[0] === false }" @click="updateFilter({ ...filterState, active: [false] })">{{ $t("Inactive") || "Inactive" }}</button>
+                <button class="filter-tab" :class="{ active: filterMode === 'all' }" @click="filterMode = 'all'">{{ $t("All") || "All" }}</button>
+                <button class="filter-tab" :class="{ active: filterMode === 'active' }" @click="filterMode = 'active'">{{ $t("Active") || "Active" }}</button>
+                <button class="filter-tab" :class="{ active: filterMode === 'inactive' }" @click="filterMode = 'inactive'">{{ $t("Inactive") || "Inactive" }}</button>
             </div>
         </div>
 
@@ -70,6 +70,7 @@ export default {
             disableSelectAllWatcher: false,
             selectedStacks: {},
             windowTop: 0,
+            filterMode: "all",
             filterState: {
                 status: null,
                 active: null,
@@ -109,8 +110,10 @@ export default {
                         );
                 }
                 let activeMatch = true;
-                if (this.filterState.active != null && this.filterState.active.length > 0) {
-                    activeMatch = this.filterState.active.includes(stack.active);
+                if (this.filterMode === 'active') {
+                    activeMatch = stack.status === RUNNING;
+                } else if (this.filterMode === 'inactive') {
+                    activeMatch = stack.status !== RUNNING;
                 }
                 let tagsMatch = true;
                 if (this.filterState.tags != null && this.filterState.tags.length > 0) {

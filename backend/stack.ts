@@ -552,4 +552,162 @@ export class Stack {
         }
 
     }
+
+    static async getDiskStats(stacksDir: string): Promise<object> {
+        const result: { partition: object, stacks: object[] } = {
+            partition: { total: 0, used: 0, free: 0, percent: 0, path: stacksDir },
+            stacks: [],
+        };
+
+        // Partition stats for the stacks directory
+        try {
+            const dfRes = await childProcessAsync.spawn("df", ["-k", stacksDir], { encoding: "utf-8" });
+            if (dfRes.stdout) {
+                const lines = dfRes.stdout.toString().trim().split("\n");
+                const dataLine = lines[lines.length - 1]; // last line handles wrapped filesystem names
+                const parts = dataLine.trim().split(/\s+/);
+                const total = parseInt(parts[1]) * 1024;
+                const used = parseInt(parts[2]) * 1024;
+                const free = parseInt(parts[3]) * 1024;
+                result.partition = { total, used, free, percent: total > 0 ? (used / total) * 100 : 0, path: stacksDir };
+            }
+        } catch {}
+
+        // Per-stack disk sizes
+        try {
+            if (fs.existsSync(stacksDir)) {
+                const entries = fs.readdirSync(stacksDir, { withFileTypes: true })
+                    .filter(e => e.isDirectory())
+                    .map(e => e.name);
+
+                if (entries.length > 0) {
+                    const paths = entries.map(e => path.join(stacksDir, e));
+                    const duRes = await childProcessAsync.spawn("du", ["-sk", ...paths], { encoding: "utf-8" });
+                    if (duRes.stdout) {
+                        result.stacks = duRes.stdout.toString().trim().split("\n")
+                            .filter(Boolean)
+                            .map(line => {
+                                const tabIdx = line.indexOf("\t");
+                                const sizeKB = parseInt(line.substring(0, tabIdx));
+                                const fullPath = line.substring(tabIdx + 1);
+                                return { name: path.basename(fullPath), size: sizeKB * 1024 };
+                            })
+                            .sort((a: any, b: any) => b.size - a.size);
+                    }
+                }
+            }
+        } catch {}
+
+        return result;
+    }
+
+    static async dockerPrune(stacksDir: string, force: boolean = false): Promise<string> {
+        if (!fs.existsSync(stacksDir)) {
+            return "Stacks directory not found.";
+        }
+
+        const entries = fs.readdirSync(stacksDir, { withFileTypes: true })
+            .filter(e => e.isDirectory())
+            .map(e => e.name);
+
+        let output = "";
+
+        for (const stackName of entries) {
+            const stackPath = path.join(stacksDir, stackName);
+            const composeFile = acceptedComposeFileNames.find(f => fs.existsSync(path.join(stackPath, f)));
+            if (!composeFile) {
+                continue;
+            }
+
+            if (force) {
+                // Skip stacks that have running containers
+                try {
+                    const runningRes = await childProcessAsync.spawn(
+                        "docker", ["compose", "ps", "-q", "--status", "running"],
+                        { encoding: "utf-8", cwd: stackPath }
+                    );
+                    const isRunning = runningRes.stdout && runningRes.stdout.toString().trim().length > 0;
+                    if (isRunning) {
+                        continue;
+                    }
+                    // Bring down stopped stack and remove its volumes
+                    const downRes = await childProcessAsync.spawn(
+                        "docker", ["compose", "down", "--volumes"],
+                        { encoding: "utf-8", cwd: stackPath }
+                    );
+                    const text = (downRes.stdout || "") + (downRes.stderr || "");
+                    if (text.toString().trim()) {
+                        output += `[${stackName}]\n${text}\n`;
+                    }
+                } catch {}
+            } else {
+                // Remove only stopped containers — safe on running stacks
+                try {
+                    const rmRes = await childProcessAsync.spawn(
+                        "docker", ["compose", "rm", "-f"],
+                        { encoding: "utf-8", cwd: stackPath }
+                    );
+                    const text = rmRes.stdout ? rmRes.stdout.toString() : "";
+                    if (text.trim() && !text.includes("No stopped containers")) {
+                        output += `[${stackName}]\n${text}\n`;
+                    }
+                } catch {}
+            }
+        }
+
+        return output.trim() || "Nothing to clean up in scope.";
+    }
+
+    static async getAllContainerStats(stacksDir: string): Promise<object[]> {
+        try {
+            const [ statsRes, psRes ] = await Promise.all([
+                childProcessAsync.spawn("docker", ["stats", "--no-stream", "--format", "{{json .}}"], { encoding: "utf-8" }),
+                childProcessAsync.spawn("docker", ["ps", "-s", "--format", "{{json .}}"], { encoding: "utf-8" }),
+            ]);
+
+            if (!statsRes.stdout) {
+                return [];
+            }
+
+            // Build name → { state, labels, size } map from docker ps -s
+            const psMap: Record<string, { state: string, labels: string, size: string }> = {};
+            if (psRes.stdout) {
+                psRes.stdout.toString().trim().split("\n").filter(Boolean).forEach(line => {
+                    try {
+                        const c = JSON.parse(line);
+                        // Size field: "1.23kB (virtual 142MB)" — keep only the writable part
+                        const writableSize = (c.Size || "").split("(")[0].trim();
+                        psMap[c.Names] = { state: c.State, labels: c.Labels || "", size: writableSize };
+                    } catch {}
+                });
+            }
+
+            return statsRes.stdout.toString().trim().split("\n")
+                .filter(Boolean)
+                .map(line => {
+                    try {
+                        const c = JSON.parse(line);
+                        const ps = psMap[c.Name] || { state: "running", labels: "", size: "" };
+
+                        // Parse labels to find working dir
+                        const labelMap: Record<string, string> = {};
+                        ps.labels.split(",").forEach((pair: string) => {
+                            const eqIdx = pair.indexOf("=");
+                            if (eqIdx > 0) {
+                                labelMap[pair.substring(0, eqIdx)] = pair.substring(eqIdx + 1);
+                            }
+                        });
+                        const workingDir = labelMap["com.docker.compose.project.working_dir"] || "";
+                        const managedByDockge = workingDir.startsWith(stacksDir + path.sep) || workingDir === stacksDir;
+
+                        return { ...c, State: ps.state, DiskUsage: ps.size, managedByDockge };
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter(Boolean);
+        } catch (e) {
+            return [];
+        }
+    }
 }

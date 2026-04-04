@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { MainRouter } from "./routers/main-router";
 import * as fs from "node:fs";
+import * as os from "os";
 import { PackageJson } from "type-fest";
 import { Database } from "./database";
 import packageJSON from "../package.json";
@@ -79,6 +80,8 @@ export class DockgeServer {
     jwtSecret : string = "";
 
     stacksDir : string = "";
+
+    private prevCPU: { idle: number; total: number } | null = null;
 
     /**
      *
@@ -635,6 +638,35 @@ export class DockgeServer {
         });
 
         return list;
+    }
+
+    getHostCPUPercent(): number {
+        const cpus = os.cpus();
+        let totalIdle = 0, totalTick = 0;
+        for (const cpu of cpus) {
+            for (const type in cpu.times) {
+                totalTick += cpu.times[type as keyof typeof cpu.times];
+            }
+            totalIdle += cpu.times.idle;
+        }
+        if (!this.prevCPU) {
+            this.prevCPU = { idle: totalIdle, total: totalTick };
+            return 0;
+        }
+        const idleDiff = totalIdle - this.prevCPU.idle;
+        const totalDiff = totalTick - this.prevCPU.total;
+        this.prevCPU = { idle: totalIdle, total: totalTick };
+        return Math.max(0, Math.min(100, (1 - idleDiff / totalDiff) * 100));
+    }
+
+    getHostStats() {
+        const total = os.totalmem();
+        const free = os.freemem();
+        const used = total - free;
+        return {
+            cpu: this.getHostCPUPercent(),
+            mem: { total, used, percent: (used / total) * 100 }
+        };
     }
 
     get stackDirFullPath() {

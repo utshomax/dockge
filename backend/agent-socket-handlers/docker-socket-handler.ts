@@ -251,6 +251,33 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 callbackError(e, callback);
             }
         });
+
+        agentSocket.on("containerStats", async (callback) => {
+            try {
+                checkLogin(socket);
+                const [ containerStats, diskStats ] = await Promise.all([
+                    Stack.getAllContainerStats(server.stackDirFullPath),
+                    Stack.getDiskStats(server.stackDirFullPath),
+                ]);
+                const hostStats = server.getHostStats();
+                callbackResult({ ok: true, containerStats, hostStats, diskStats }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        agentSocket.on("dockerPrune", async (force: unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof force !== "boolean") {
+                    throw new ValidationError("force must be a boolean");
+                }
+                const output = await Stack.dockerPrune(server.stackDirFullPath, force);
+                callbackResult({ ok: true, output }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
     }
 
     async saveStack(server : DockgeServer, name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown) : Promise<Stack> {

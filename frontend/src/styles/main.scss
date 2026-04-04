@@ -37,6 +37,10 @@ html, body, #app {
     -moz-osx-font-smoothing: grayscale;
 }
 
+body.page-fullscreen-active {
+    overflow: hidden;
+}
+
 input, button, select, textarea, .btn, .form-control {
     font-family: inherit;
 }

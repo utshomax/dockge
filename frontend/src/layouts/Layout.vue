@@ -33,6 +33,12 @@
                     </svg>
                     <span>{{ $t("console") }}</span>
                 </router-link>
+                <router-link to="/stats" class="nav-item" :class="{ active: $route.path === '/stats' }">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <span>Stats</span>
+                </router-link>
             </nav>
 
             <!-- Bottom section: settings + user -->
@@ -104,6 +110,12 @@
                     <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
                 </svg>
                 <span>{{ $t("console") }}</span>
+            </router-link>
+            <router-link to="/stats" class="bottom-nav-item" :class="{ active: $route.path === '/stats' }">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+                <span>Stats</span>
             </router-link>
             <router-link to="/settings/general" class="bottom-nav-item" :class="{ active: $route.path.includes('settings') }">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>

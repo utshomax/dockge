@@ -162,23 +162,32 @@
                     <!-- Combined Terminal Output -->
                     <div v-show="!isEditMode" class="section">
                         <div class="section-label">{{ $t("terminal") }}</div>
-                        <Terminal
-                            ref="combinedTerminal"
-                            class="combined-terminal mt-2"
-                            :name="combinedTerminalName"
-                            :endpoint="endpoint"
-                            :rows="combinedTerminalRows"
-                            :cols="combinedTerminalCols"
-                        ></Terminal>
+                        <div ref="terminalContainerEl" class="terminal-container mt-2" :class="{ fullscreen: isTerminalFullscreen }">
+                            <Terminal
+                                ref="combinedTerminal"
+                                class="combined-terminal"
+                                :style="isTerminalFullscreen ? { height: '100%' } : {}"
+                                :name="combinedTerminalName"
+                                :endpoint="endpoint"
+                                :rows="combinedTerminalRows"
+                                :cols="combinedTerminalCols"
+                            ></Terminal>
+                            <button class="fullscreen-btn" @click="toggleTerminalFullscreen" :title="isTerminalFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'">
+                                <svg v-if="!isTerminalFullscreen" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                                </svg>
+                                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="compose-column">
+                    <!-- YAML editor -->
                     <div class="section">
                         <div class="section-label">{{ stack.composeFileName || 'compose.yaml' }}</div>
-
-                        <!-- YAML editor -->
-                        <div class="editor-panel mt-2" :class="{'edit-mode' : isEditMode}">
-                            <!-- Optional Top Bar for Editor can go here -->
+                        <div class="editor-panel mt-2" :class="{'edit-mode': isEditMode, 'fullscreen': isYamlFullscreen}">
                             <code-mirror
                                 ref="editor"
                                 v-model="stack.composeYAML"
@@ -191,6 +200,14 @@
                                 :hasFocus="editorFocus"
                                 :scrollIntoView="false"
                             />
+                            <button v-if="isEditMode" class="fullscreen-btn" @click="toggleYamlFullscreen" :title="isYamlFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'">
+                                <svg v-if="!isYamlFullscreen" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                                </svg>
+                                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+                                </svg>
+                            </button>
                         </div>
                         <div v-if="isEditMode && yamlError" class="yaml-error">
                             {{ yamlError }}
@@ -200,9 +217,9 @@
                     <!-- ENV editor -->
                     <div v-if="isEditMode" class="section">
                         <div class="section-label">.env</div>
-                        <div class="editor-panel mt-2" :class="{'edit-mode' : isEditMode}">
+                        <div class="editor-panel mt-2" :class="{'edit-mode': isEditMode, 'fullscreen': isEnvFullscreen}">
                             <code-mirror
-                                ref="editor"
+                                ref="envEditor"
                                 v-model="stack.composeENV"
                                 :extensions="extensionsEnv"
                                 minimal
@@ -213,6 +230,14 @@
                                 :hasFocus="editorFocus"
                                 :scrollIntoView="false"
                             />
+                            <button class="fullscreen-btn" @click="toggleEnvFullscreen" :title="isEnvFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'">
+                                <svg v-if="!isEnvFullscreen" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                                </svg>
+                                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
 
@@ -341,6 +366,9 @@ export default {
             showDeleteDialog: false,
             newContainerName: "",
             stopServiceStatusTimeout: false,
+            isYamlFullscreen: false,
+            isEnvFullscreen: false,
+            isTerminalFullscreen: false,
         };
     },
     computed: {
@@ -507,9 +535,20 @@ export default {
         }
 
         this.requestServiceStatus();
+        window.addEventListener("keydown", this.handleKeydown);
+        this.$nextTick(() => {
+            if (this.$refs.terminalContainerEl) {
+                this._terminalResizeObserver = new ResizeObserver(() => {
+                    this.$refs.combinedTerminal?.updateTerminalSize();
+                });
+                this._terminalResizeObserver.observe(this.$refs.terminalContainerEl);
+            }
+        });
     },
     unmounted() {
-
+        window.removeEventListener("keydown", this.handleKeydown);
+        this._terminalResizeObserver?.disconnect();
+        document.body.classList.remove("page-fullscreen-active");
     },
     methods: {
         startServiceStatusTimeout() {
@@ -780,6 +819,45 @@ export default {
             this.stack.name = this.stack?.name?.toLowerCase();
         },
 
+        toggleYamlFullscreen() {
+            this.isYamlFullscreen = !this.isYamlFullscreen;
+            this.syncFullscreenState();
+        },
+
+        toggleEnvFullscreen() {
+            this.isEnvFullscreen = !this.isEnvFullscreen;
+            this.syncFullscreenState();
+        },
+
+        toggleTerminalFullscreen() {
+            this.isTerminalFullscreen = !this.isTerminalFullscreen;
+            this.syncFullscreenState();
+            this.refitCombinedTerminal();
+        },
+
+        syncFullscreenState() {
+            const isFullscreenActive = this.isYamlFullscreen || this.isEnvFullscreen || this.isTerminalFullscreen;
+            document.body.classList.toggle("page-fullscreen-active", isFullscreenActive);
+        },
+
+        refitCombinedTerminal() {
+            this.$nextTick(() => {
+                this.$refs.combinedTerminal?.updateTerminalSize();
+            });
+        },
+
+        handleKeydown(e) {
+            if (e.key === "Escape") {
+                const hadTerminal = this.isTerminalFullscreen;
+                this.isYamlFullscreen = false;
+                this.isEnvFullscreen = false;
+                this.isTerminalFullscreen = false;
+                this.syncFullscreenState();
+                if (hadTerminal) {
+                    this.refitCombinedTerminal();
+                }
+            }
+        },
     }
 };
 </script>
@@ -907,6 +985,30 @@ export default {
     margin-bottom: 8px;
 }
 
+// Fullscreen button — positioned inside each container
+.fullscreen-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    padding: 4px 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+
+    &:hover {
+        color: rgba(255, 255, 255, 0.85);
+        background: rgba(0, 0, 0, 0.6);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+}
+
 // =====================
 // Panels (cards)
 // =====================
@@ -996,17 +1098,30 @@ export default {
 // =====================
 // Terminals
 // =====================
-.combined-terminal {
-    height: 300px;
+.terminal-container {
+    position: relative;
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid $dark-border-color;
+
+    &.fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        border-radius: 0;
+        border: none;
+    }
+}
+
+.combined-terminal {
+    height: 300px;
 }
 
 // =====================
 // YAML Editor
 // =====================
 .editor-panel {
+    position: relative;
     background-color: #1e1e1e; /* Codemirror default dark background match */
     border: 1px solid $dark-border-color;
     border-radius: 8px;
@@ -1019,6 +1134,16 @@ export default {
 
     &.edit-mode {
         border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    &.fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        border-radius: 0;
+        border: none;
+        min-height: unset;
+        overflow: auto;
     }
 }
 .editor-panel .vue-codemirror { /* target the inner editor wrapper */
