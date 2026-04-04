@@ -15,6 +15,13 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 checkLogin(socket);
                 const stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd);
                 const needsBuild = typeof composeYAML === "string" && hasBuildDirective(composeYAML);
+                if (needsBuild) {
+                    const ghRow = await R.findOne("stack_github", " stack_name = ? ", [ stack.name ]);
+                    if (ghRow) {
+                        const pat = ghRow.pat ?? undefined;
+                        await cloneRepo(ghRow.repo_url, ghRow.branch, stack.path, pat);
+                    }
+                }
                 await stack.deploy(socket, needsBuild);
                 server.sendStackList();
                 callbackResult({
