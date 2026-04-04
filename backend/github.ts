@@ -82,52 +82,58 @@ export async function listBranches(repoUrl: string, pat?: string): Promise<strin
     return branches;
 }
 
-export async function findAndFetchCompose(repoUrl: string, branch: string, pat?: string): Promise<string> {
+export async function findAndFetchCompose(repoUrl: string, branch: string, pat?: string, composePath?: string): Promise<string> {
     const { owner, repo } = parseRepoUrl(repoUrl);
     const headers = getApiHeaders(pat);
 
-    // Get the root tree
-    const treeRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}`,
-        { headers }
-    );
+    let resolvedPath: string;
 
-    if (!treeRes.ok) {
-        const body = await treeRes.text().catch(() => "");
-        throw new ValidationError(`GitHub API error ${treeRes.status}: ${body}`);
-    }
+    if (composePath && composePath.trim().length > 0) {
+        resolvedPath = composePath.trim();
+    } else {
+        // Auto-detect: get the root tree
+        const treeRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}`,
+            { headers }
+        );
 
-    const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> };
-    const files = treeData.tree.filter(item => item.type === "blob").map(item => item.path);
-
-    // Priority compose file names
-    const priorityNames = [
-        "compose.yaml",
-        "compose.yml",
-        "docker-compose.yaml",
-        "docker-compose.yml",
-    ];
-
-    let composePath: string | undefined;
-
-    for (const name of priorityNames) {
-        if (files.includes(name)) {
-            composePath = name;
-            break;
+        if (!treeRes.ok) {
+            const body = await treeRes.text().catch(() => "");
+            throw new ValidationError(`GitHub API error ${treeRes.status}: ${body}`);
         }
+
+        const treeData = await treeRes.json() as { tree: Array<{ path: string; type: string }> };
+        const files = treeData.tree.filter(item => item.type === "blob").map(item => item.path);
+
+        const priorityNames = [
+            "compose.yaml",
+            "compose.yml",
+            "docker-compose.yaml",
+            "docker-compose.yml",
+        ];
+
+        let detected: string | undefined;
+
+        for (const name of priorityNames) {
+            if (files.includes(name)) {
+                detected = name;
+                break;
+            }
+        }
+
+        if (!detected) {
+            const wildcardPattern = /^docker-compose\..+\.(yaml|yml)$/;
+            detected = files.find(f => wildcardPattern.test(f));
+        }
+
+        if (!detected) {
+            throw new ValidationError("No compose file found in repository root");
+        }
+
+        resolvedPath = detected;
     }
 
-    // Wildcard fallback: docker-compose.<something>.yaml|yml
-    if (!composePath) {
-        const wildcardPattern = /^docker-compose\..+\.(yaml|yml)$/;
-        composePath = files.find(f => wildcardPattern.test(f));
-    }
-
-    if (!composePath) {
-        throw new ValidationError("No compose file found in repository root");
-    }
-
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${composePath}`;
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${resolvedPath}`;
     const rawRes = await fetch(rawUrl, pat ? { headers: { "Authorization": `Bearer ${pat}` } } : {});
 
     if (!rawRes.ok) {

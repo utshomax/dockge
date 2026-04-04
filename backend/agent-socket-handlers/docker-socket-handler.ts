@@ -297,7 +297,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
             }
         });
 
-        agentSocket.on("githubFetchCompose", async (repoUrl: unknown, branch: unknown, pat: unknown, callback) => {
+        agentSocket.on("githubFetchCompose", async (repoUrl: unknown, branch: unknown, pat: unknown, composePath: unknown, callback) => {
             try {
                 checkLogin(socket);
                 if (typeof repoUrl !== "string") {
@@ -307,14 +307,15 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("branch must be a string");
                 }
                 const patStr = typeof pat === "string" && pat.length > 0 ? pat : undefined;
-                const composeYAML = await findAndFetchCompose(repoUrl, branch, patStr);
+                const composePathStr = typeof composePath === "string" && composePath.length > 0 ? composePath : undefined;
+                const composeYAML = await findAndFetchCompose(repoUrl, branch, patStr, composePathStr);
                 callbackResult({ ok: true, composeYAML }, callback);
             } catch (e) {
                 callbackError(e, callback);
             }
         });
 
-        agentSocket.on("githubSaveConfig", async (stackName: unknown, repoUrl: unknown, pat: unknown, branch: unknown, callback) => {
+        agentSocket.on("githubSaveConfig", async (stackName: unknown, repoUrl: unknown, pat: unknown, branch: unknown, composePath: unknown, callback) => {
             try {
                 checkLogin(socket);
                 if (typeof stackName !== "string") {
@@ -327,11 +328,14 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     throw new ValidationError("branch must be a string");
                 }
 
+                const composePathVal = typeof composePath === "string" && composePath.length > 0 ? composePath : null;
+
                 let existing = await R.findOne("stack_github", " stack_name = ? ", [ stackName ]);
 
                 if (existing) {
                     existing.repo_url = repoUrl;
                     existing.branch = branch;
+                    existing.compose_path = composePathVal;
                     // Only update PAT if a new non-empty value was provided
                     if (typeof pat === "string" && pat.length > 0) {
                         existing.pat = pat;
@@ -343,6 +347,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     row.repo_url = repoUrl;
                     row.pat = typeof pat === "string" && pat.length > 0 ? pat : null;
                     row.branch = branch;
+                    row.compose_path = composePathVal;
                     await R.store(row);
                 }
 
@@ -362,7 +367,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 const row = await R.findOne("stack_github", " stack_name = ? ", [ stackName ]);
 
                 if (!row) {
-                    callbackResult({ ok: true, repoUrl: "", branch: "", hasPat: false }, callback);
+                    callbackResult({ ok: true, repoUrl: "", branch: "", composePath: "", hasPat: false }, callback);
                     return;
                 }
 
@@ -370,6 +375,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                     ok: true,
                     repoUrl: row.repo_url,
                     branch: row.branch,
+                    composePath: row.compose_path ?? "",
                     hasPat: !!row.pat,
                 }, callback);
             } catch (e) {
@@ -390,9 +396,10 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 }
 
                 const pat = row.pat ?? undefined;
+                const composePath = row.compose_path ?? undefined;
 
                 // Fetch compose file first (also validates the branch/repo are reachable)
-                const composeYAML = await findAndFetchCompose(row.repo_url, row.branch, pat);
+                const composeYAML = await findAndFetchCompose(row.repo_url, row.branch, pat, composePath);
 
                 // Load existing stack to preserve ENV
                 const existingStack = await Stack.getStack(server, stackName);

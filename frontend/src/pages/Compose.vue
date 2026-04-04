@@ -17,7 +17,7 @@
                     <!-- Edit Mode Actions -->
                     <button v-if="isEditMode" class="btn linear-btn-primary" :disabled="processing" @click="deployStack">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.5-1.5 2.5 0 4 1.5 1.5 2.5 1.5 4 0l8-8c1.5-1.5 1.5-2.5 0-4L12 4c-1.5-1.5-2.5-1.5-4 0L4.5 8.5"/><path d="m22 2-7 7"/></svg>
-                        Deploy
+                        {{ deployButtonLabel }}
                     </button>
                     <button v-if="isEditMode" class="btn linear-btn-outline" :disabled="processing" @click="saveStack">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -185,6 +185,10 @@
                                         @click="fetchGitHubBranches">
                                     {{ github.fetchingBranches ? '…' : 'Fetch Branches' }}
                                 </button>
+                            </div>
+                            <div class="field-row mt-2">
+                                <label class="field-label">Compose file path (optional)</label>
+                                <input v-model="github.composePath" class="form-control" placeholder="Auto-detect (e.g. infra/docker-compose.prod.yml)" />
                             </div>
                             <!-- New stack: load YAML into editor -->
                             <button v-if="isAdd && github.branch" class="btn linear-btn-outline mt-2"
@@ -415,6 +419,7 @@ export default {
                 repoUrl: "",
                 pat: "",
                 branch: "",
+                composePath: "",
                 branches: [],
                 hasPat: false,
                 fetchingBranches: false,
@@ -472,6 +477,23 @@ export default {
 
         active() {
             return this.status === RUNNING;
+        },
+
+        deployButtonLabel() {
+            try {
+                const parsed = this.jsonConfig;
+                if (parsed?.services && typeof parsed.services === "object") {
+                    const hasBuild = Object.values(parsed.services).some(
+                        (svc) => svc !== null && typeof svc === "object" && "build" in svc
+                    );
+                    if (hasBuild) {
+                        return "Build and Deploy";
+                    }
+                }
+            } catch {
+                // ignore parse errors
+            }
+            return "Deploy";
         },
 
         terminalName() {
@@ -666,6 +688,7 @@ export default {
                         if (ghRes.ok) {
                             this.github.repoUrl = ghRes.repoUrl || "";
                             this.github.branch = ghRes.branch || "";
+                            this.github.composePath = ghRes.composePath || "";
                             this.github.hasPat = !!ghRes.hasPat;
                         }
                     });
@@ -943,7 +966,7 @@ export default {
             }
             this.github.loadingCompose = true;
             const pat = this.github.pat || "";
-            this.$root.emitAgent(this.endpoint, "githubFetchCompose", this.github.repoUrl, this.github.branch, pat, (res) => {
+            this.$root.emitAgent(this.endpoint, "githubFetchCompose", this.github.repoUrl, this.github.branch, pat, this.github.composePath, (res) => {
                 this.github.loadingCompose = false;
                 if (res.ok) {
                     this.stack.composeYAML = res.composeYAML;
@@ -956,7 +979,7 @@ export default {
 
         saveGitHubConfig() {
             const pat = this.github.pat || "";
-            this.$root.emitAgent(this.endpoint, "githubSaveConfig", this.stack.name, this.github.repoUrl, pat, this.github.branch, (res) => {
+            this.$root.emitAgent(this.endpoint, "githubSaveConfig", this.stack.name, this.github.repoUrl, pat, this.github.branch, this.github.composePath, (res) => {
                 this.$root.toastRes(res);
                 if (res.ok) {
                     this.github.hasPat = this.github.pat.length > 0 ? true : this.github.hasPat;
