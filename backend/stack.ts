@@ -206,9 +206,12 @@ export class Stack {
         }
     }
 
-    async deploy(socket : DockgeSocket) : Promise<number> {
+    async deploy(socket : DockgeSocket, build = false) : Promise<number> {
         const terminalName = getComposeTerminalName(socket.endpoint, this.name);
-        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", this.getComposeOptions("up", "-d", "--remove-orphans"), this.path);
+        const upOptions = build
+            ? this.getComposeOptions("up", "-d", "--remove-orphans", "--build")
+            : this.getComposeOptions("up", "-d", "--remove-orphans");
+        let exitCode = await Terminal.exec(this.server, socket, terminalName, "docker", upOptions, this.path);
         if (exitCode !== 0) {
             throw new Error("Failed to deploy, please check the terminal output for more information.");
         }

@@ -3,6 +3,8 @@ import { DockgeServer } from "../dockge-server";
 import { callbackError, callbackResult, checkLogin, DockgeSocket, ValidationError } from "../util-server";
 import { Stack } from "../stack";
 import { AgentSocket } from "../../common/agent-socket";
+import { listBranches, findAndFetchCompose, hasBuildDirective, cloneRepo } from "../github";
+import { R } from "redbean-node";
 
 export class DockerSocketHandler extends AgentSocketHandler {
     create(socket : DockgeSocket, server : DockgeServer, agentSocket : AgentSocket) {
@@ -274,6 +276,144 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 }
                 const output = await Stack.dockerPrune(server.stackDirFullPath, force);
                 callbackResult({ ok: true, output }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        // GitHub integration events
+
+        agentSocket.on("githubListBranches", async (repoUrl: unknown, pat: unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof repoUrl !== "string") {
+                    throw new ValidationError("repoUrl must be a string");
+                }
+                const patStr = typeof pat === "string" && pat.length > 0 ? pat : undefined;
+                const branches = await listBranches(repoUrl, patStr);
+                callbackResult({ ok: true, branches }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        agentSocket.on("githubFetchCompose", async (repoUrl: unknown, branch: unknown, pat: unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof repoUrl !== "string") {
+                    throw new ValidationError("repoUrl must be a string");
+                }
+                if (typeof branch !== "string") {
+                    throw new ValidationError("branch must be a string");
+                }
+                const patStr = typeof pat === "string" && pat.length > 0 ? pat : undefined;
+                const composeYAML = await findAndFetchCompose(repoUrl, branch, patStr);
+                callbackResult({ ok: true, composeYAML }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        agentSocket.on("githubSaveConfig", async (stackName: unknown, repoUrl: unknown, pat: unknown, branch: unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof stackName !== "string") {
+                    throw new ValidationError("stackName must be a string");
+                }
+                if (typeof repoUrl !== "string") {
+                    throw new ValidationError("repoUrl must be a string");
+                }
+                if (typeof branch !== "string") {
+                    throw new ValidationError("branch must be a string");
+                }
+
+                let existing = await R.findOne("stack_github", " stack_name = ? ", [ stackName ]);
+
+                if (existing) {
+                    existing.repo_url = repoUrl;
+                    existing.branch = branch;
+                    // Only update PAT if a new non-empty value was provided
+                    if (typeof pat === "string" && pat.length > 0) {
+                        existing.pat = pat;
+                    }
+                    await R.store(existing);
+                } else {
+                    const row = R.dispense("stack_github");
+                    row.stack_name = stackName;
+                    row.repo_url = repoUrl;
+                    row.pat = typeof pat === "string" && pat.length > 0 ? pat : null;
+                    row.branch = branch;
+                    await R.store(row);
+                }
+
+                callbackResult({ ok: true, msg: "GitHub config saved" }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        agentSocket.on("githubGetConfig", async (stackName: unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof stackName !== "string") {
+                    throw new ValidationError("stackName must be a string");
+                }
+
+                const row = await R.findOne("stack_github", " stack_name = ? ", [ stackName ]);
+
+                if (!row) {
+                    callbackResult({ ok: true, repoUrl: "", branch: "", hasPat: false }, callback);
+                    return;
+                }
+
+                callbackResult({
+                    ok: true,
+                    repoUrl: row.repo_url,
+                    branch: row.branch,
+                    hasPat: !!row.pat,
+                }, callback);
+            } catch (e) {
+                callbackError(e, callback);
+            }
+        });
+
+        agentSocket.on("githubDeployBranch", async (stackName: unknown, callback) => {
+            try {
+                checkLogin(socket);
+                if (typeof stackName !== "string") {
+                    throw new ValidationError("stackName must be a string");
+                }
+
+                const row = await R.findOne("stack_github", " stack_name = ? ", [ stackName ]);
+                if (!row) {
+                    throw new ValidationError("No GitHub config found for this stack");
+                }
+
+                const pat = row.pat ?? undefined;
+
+                // Fetch compose file first (also validates the branch/repo are reachable)
+                const composeYAML = await findAndFetchCompose(row.repo_url, row.branch, pat);
+
+                // Load existing stack to preserve ENV
+                const existingStack = await Stack.getStack(server, stackName);
+                const composeENV = existingStack.composeENV ?? "";
+
+                const needsBuild = hasBuildDirective(composeYAML);
+
+                if (needsBuild) {
+                    // Clone the full repo so Dockerfile + source files are on disk
+                    await cloneRepo(row.repo_url, row.branch, existingStack.path, pat);
+                }
+
+                // Save compose + env (overwrites compose file with fetched content; preserves other repo files)
+                const stack = new Stack(server, stackName, composeYAML, composeENV, false);
+                await stack.save(false);
+
+                // Pass --build when the compose file requires a local build
+                await stack.deploy(socket, needsBuild);
+                server.sendStackList();
+                callbackResult({ ok: true, msg: "Deployed from GitHub" }, callback);
+                stack.joinCombinedTerminal(socket);
             } catch (e) {
                 callbackError(e, callback);
             }

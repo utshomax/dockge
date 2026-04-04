@@ -159,6 +159,43 @@
                         </div>
                     </div>
 
+                    <!-- GitHub -->
+                    <div v-if="isEditMode" class="section">
+                        <div class="section-label">GitHub</div>
+                        <div class="panel big-panel">
+                            <div class="field-row">
+                                <label class="field-label">Repository URL</label>
+                                <input v-model="github.repoUrl" class="form-control" placeholder="https://github.com/owner/repo" />
+                            </div>
+                            <div class="field-row mt-2">
+                                <label class="field-label">PAT Token (optional)</label>
+                                <input v-model="github.pat" type="password" class="form-control"
+                                       :placeholder="github.hasPat ? '●●●●●● (stored)' : 'ghp_...'" />
+                            </div>
+                            <div class="field-row mt-2" style="display:flex; gap:6px">
+                                <select v-model="github.branch" class="form-select">
+                                    <option v-for="b in github.branches" :key="b" :value="b">{{ b }}</option>
+                                </select>
+                                <button class="btn linear-btn-outline" :disabled="!github.repoUrl || github.fetchingBranches"
+                                        @click="fetchGitHubBranches">
+                                    {{ github.fetchingBranches ? '…' : 'Fetch Branches' }}
+                                </button>
+                            </div>
+                            <!-- New stack: load YAML into editor -->
+                            <button v-if="isAdd && github.branch" class="btn linear-btn-outline mt-2"
+                                    :disabled="github.loadingCompose" @click="loadYamlFromGitHub">
+                                {{ github.loadingCompose ? 'Loading…' : 'Load YAML from Branch' }}
+                            </button>
+                            <!-- Existing stack: save config + deploy from branch -->
+                            <div v-if="!isAdd && github.branch" class="mt-2" style="display:flex; gap:6px">
+                                <button class="btn linear-btn-outline" @click="saveGitHubConfig">Save Config</button>
+                                <button class="btn linear-btn-primary" :disabled="processing" @click="deployFromGitHub">
+                                    Deploy from Branch
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Combined Terminal Output -->
                     <div v-show="!isEditMode" class="section">
                         <div class="section-label">{{ $t("terminal") }}</div>
@@ -369,6 +406,15 @@ export default {
             isYamlFullscreen: false,
             isEnvFullscreen: false,
             isTerminalFullscreen: false,
+            github: {
+                repoUrl: "",
+                pat: "",
+                branch: "",
+                branches: [],
+                hasPat: false,
+                fetchingBranches: false,
+                loadingCompose: false,
+            },
         };
     },
     computed: {
@@ -610,6 +656,14 @@ export default {
                     this.yamlCodeChange();
                     this.processing = false;
                     this.bindTerminal();
+                    // Load GitHub config for this stack
+                    this.$root.emitAgent(this.endpoint, "githubGetConfig", this.stack.name, (ghRes) => {
+                        if (ghRes.ok) {
+                            this.github.repoUrl = ghRes.repoUrl || "";
+                            this.github.branch = ghRes.branch || "";
+                            this.github.hasPat = !!ghRes.hasPat;
+                        }
+                    });
                 } else {
                     this.$root.toastRes(res);
                 }
@@ -857,6 +911,65 @@ export default {
                     this.refitCombinedTerminal();
                 }
             }
+        },
+
+        fetchGitHubBranches() {
+            if (!this.github.repoUrl || this.github.fetchingBranches) {
+                return;
+            }
+            this.github.fetchingBranches = true;
+            const pat = this.github.pat || "";
+            this.$root.emitAgent(this.endpoint, "githubListBranches", this.github.repoUrl, pat, (res) => {
+                this.github.fetchingBranches = false;
+                if (res.ok) {
+                    this.github.branches = res.branches;
+                    if (res.branches.length > 0 && !this.github.branch) {
+                        this.github.branch = res.branches[0];
+                    }
+                } else {
+                    this.$root.toastRes(res);
+                }
+            });
+        },
+
+        loadYamlFromGitHub() {
+            if (!this.github.branch || this.github.loadingCompose) {
+                return;
+            }
+            this.github.loadingCompose = true;
+            const pat = this.github.pat || "";
+            this.$root.emitAgent(this.endpoint, "githubFetchCompose", this.github.repoUrl, this.github.branch, pat, (res) => {
+                this.github.loadingCompose = false;
+                if (res.ok) {
+                    this.stack.composeYAML = res.composeYAML;
+                    this.yamlCodeChange();
+                } else {
+                    this.$root.toastRes(res);
+                }
+            });
+        },
+
+        saveGitHubConfig() {
+            const pat = this.github.pat || "";
+            this.$root.emitAgent(this.endpoint, "githubSaveConfig", this.stack.name, this.github.repoUrl, pat, this.github.branch, (res) => {
+                this.$root.toastRes(res);
+                if (res.ok) {
+                    this.github.hasPat = this.github.pat.length > 0 ? true : this.github.hasPat;
+                    this.github.pat = "";
+                }
+            });
+        },
+
+        deployFromGitHub() {
+            this.processing = true;
+            this.$root.emitAgent(this.endpoint, "githubDeployBranch", this.stack.name, (res) => {
+                this.processing = false;
+                this.$root.toastRes(res);
+                if (res.ok) {
+                    this.isEditMode = false;
+                    this.$router.push(this.url);
+                }
+            });
         },
     }
 };
