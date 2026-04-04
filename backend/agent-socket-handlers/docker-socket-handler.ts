@@ -14,7 +14,8 @@ export class DockerSocketHandler extends AgentSocketHandler {
             try {
                 checkLogin(socket);
                 const stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd);
-                await stack.deploy(socket);
+                const needsBuild = typeof composeYAML === "string" && hasBuildDirective(composeYAML);
+                await stack.deploy(socket, needsBuild);
                 server.sendStackList();
                 callbackResult({
                     ok: true,
