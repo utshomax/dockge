@@ -5,36 +5,62 @@ import path from "path";
 import os from "os";
 import fs from "fs";
 
+// Directories that should never be copied from a cloned repo into the stack dir.
+const SKIP_DIRS = new Set([ ".git" ]);
+
 /**
  * Recursively copies src into dest, handling type conflicts that fs.cpSync
  * cannot resolve (e.g. source is a directory but dest path is a file, or
  * source is a file but dest path is a directory).  Conflicting destination
  * entries are removed before the copy so the source always wins.
+ *
+ * Uses lstatSync (not statSync) for destination checks so that broken
+ * symlinks are detected and removed instead of being silently skipped,
+ * which would leave a broken symlink in place and cause mkdirSync to fail.
  */
-function forceCopySync(src: string, dest: string): void {
-    const srcStat = fs.statSync(src, { throwIfNoEntry: false });
-    if (!srcStat) {
-        return;
+function forceCopySync(src: string, dest: string, isRoot = false): void {
+    let srcStat: fs.Stats | undefined;
+    try {
+        srcStat = fs.statSync(src);
+    } catch {
+        return; // source inaccessible — skip
     }
 
     if (srcStat.isDirectory()) {
-        const destStat = fs.statSync(dest, { throwIfNoEntry: false });
-        if (destStat && !destStat.isDirectory()) {
-            // dest is a file/symlink where we need a directory — remove it
+        // lstatSync: does NOT follow symlinks, so broken symlinks are visible
+        let destLstat: fs.Stats | undefined;
+        try {
+            destLstat = fs.lstatSync(dest);
+        } catch { /* dest absent */ }
+
+        if (destLstat && !destLstat.isDirectory()) {
+            // dest is a file or symlink (possibly broken) — remove before mkdir
             fs.rmSync(dest, { force: true });
+            destLstat = undefined;
         }
         fs.mkdirSync(dest, { recursive: true });
+
         for (const entry of fs.readdirSync(src)) {
-            forceCopySync(path.join(src, entry), path.join(dest, entry));
+            if (isRoot && SKIP_DIRS.has(entry)) {
+                continue; // never copy .git etc. into the stack directory
+            }
+            try {
+                forceCopySync(path.join(src, entry), path.join(dest, entry));
+            } catch { /* skip individual entries that can't be copied */ }
         }
-    } else {
-        const destStat = fs.statSync(dest, { throwIfNoEntry: false });
-        if (destStat && destStat.isDirectory()) {
-            // dest is a directory where we need a file — remove it
+    } else if (srcStat.isFile()) {
+        let destLstat: fs.Stats | undefined;
+        try {
+            destLstat = fs.lstatSync(dest);
+        } catch { /* dest absent */ }
+
+        if (destLstat) {
+            // Remove whatever is at dest — file, directory, or broken symlink
             fs.rmSync(dest, { recursive: true, force: true });
         }
         fs.copyFileSync(src, dest);
     }
+    // Symlinks and other special files in the source are intentionally skipped
 }
 
 interface ParsedRepo {
@@ -224,7 +250,7 @@ export async function cloneRepo(
         fs.mkdirSync(targetDir, { recursive: true });
 
         // Merge repo files into targetDir, resolving any type conflicts
-        forceCopySync(tempDir, targetDir);
+        forceCopySync(tempDir, targetDir, true);
     } catch (cloneError: unknown) {
         const raw = cloneError instanceof Error ? cloneError.message : String(cloneError);
         // Sanitize PAT from any error output before surfacing to the client
