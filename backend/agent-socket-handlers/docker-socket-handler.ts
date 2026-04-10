@@ -5,15 +5,23 @@ import { Stack } from "../stack";
 import { AgentSocket } from "../../common/agent-socket";
 import { listBranches, findAndFetchCompose, hasBuildDirective, cloneRepo } from "../github";
 import { R } from "redbean-node";
+import fs from "fs";
 
 export class DockerSocketHandler extends AgentSocketHandler {
     create(socket : DockgeSocket, server : DockgeServer, agentSocket : AgentSocket) {
         // Do not call super.create()
 
         agentSocket.on("deployStack", async (name : unknown, composeYAML : unknown, composeENV : unknown, isAdd : unknown, callback) => {
+            let createdPath: string | undefined;
             try {
                 checkLogin(socket);
                 const stack = await this.saveStack(server, name, composeYAML, composeENV, isAdd);
+                // Track the newly created directory so we can clean it up if a
+                // subsequent clone fails, preventing "Stack name already exists"
+                // errors on the next retry.
+                if (isAdd) {
+                    createdPath = stack.path;
+                }
                 const needsBuild = typeof composeYAML === "string" && hasBuildDirective(composeYAML);
                 if (needsBuild) {
                     const ghRow = await R.findOne("stack_github", " stack_name = ? ", [ stack.name ]);
@@ -22,6 +30,7 @@ export class DockerSocketHandler extends AgentSocketHandler {
                         await cloneRepo(ghRow.repo_url, ghRow.branch, stack.path, pat);
                     }
                 }
+                createdPath = undefined; // deploy succeeded, no cleanup needed
                 await stack.deploy(socket, needsBuild);
                 server.sendStackList();
                 callbackResult({
@@ -31,6 +40,11 @@ export class DockerSocketHandler extends AgentSocketHandler {
                 }, callback);
                 stack.joinCombinedTerminal(socket);
             } catch (e) {
+                if (createdPath) {
+                    try {
+                        fs.rmSync(createdPath, { recursive: true, force: true });
+                    } catch { /* ignore */ }
+                }
                 callbackError(e, callback);
             }
         });

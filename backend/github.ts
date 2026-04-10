@@ -176,10 +176,10 @@ export async function cloneRepo(
         ? `https://${encodeURIComponent(pat)}@github.com/${owner}/${repo}.git`
         : `https://github.com/${owner}/${repo}.git`;
 
-    const tempDir = path.join(
-        os.tmpdir(),
-        `dockge-gh-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    );
+    // mkdtempSync creates a guaranteed-unique directory atomically, so git clone
+    // never sees a pre-existing destination path.
+    const tempParent = fs.mkdtempSync(path.join(os.tmpdir(), "dockge-gh-"));
+    const tempDir = path.join(tempParent, "repo");
 
     try {
         await childProcessAsync.spawn(
@@ -200,7 +200,7 @@ export async function cloneRepo(
         throw new ValidationError(`git clone failed: ${sanitized}`);
     } finally {
         try {
-            fs.rmSync(tempDir, { recursive: true, force: true });
+            fs.rmSync(tempParent, { recursive: true, force: true });
         } catch { /* ignore temp cleanup failures */ }
     }
 }
