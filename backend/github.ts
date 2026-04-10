@@ -5,6 +5,38 @@ import path from "path";
 import os from "os";
 import fs from "fs";
 
+/**
+ * Recursively copies src into dest, handling type conflicts that fs.cpSync
+ * cannot resolve (e.g. source is a directory but dest path is a file, or
+ * source is a file but dest path is a directory).  Conflicting destination
+ * entries are removed before the copy so the source always wins.
+ */
+function forceCopySync(src: string, dest: string): void {
+    const srcStat = fs.statSync(src, { throwIfNoEntry: false });
+    if (!srcStat) {
+        return;
+    }
+
+    if (srcStat.isDirectory()) {
+        const destStat = fs.statSync(dest, { throwIfNoEntry: false });
+        if (destStat && !destStat.isDirectory()) {
+            // dest is a file/symlink where we need a directory — remove it
+            fs.rmSync(dest, { force: true });
+        }
+        fs.mkdirSync(dest, { recursive: true });
+        for (const entry of fs.readdirSync(src)) {
+            forceCopySync(path.join(src, entry), path.join(dest, entry));
+        }
+    } else {
+        const destStat = fs.statSync(dest, { throwIfNoEntry: false });
+        if (destStat && destStat.isDirectory()) {
+            // dest is a directory where we need a file — remove it
+            fs.rmSync(dest, { recursive: true, force: true });
+        }
+        fs.copyFileSync(src, dest);
+    }
+}
+
 interface ParsedRepo {
     owner: string;
     repo: string;
@@ -191,8 +223,8 @@ export async function cloneRepo(
         // Ensure target directory exists
         fs.mkdirSync(targetDir, { recursive: true });
 
-        // Merge repo files into targetDir, overwriting conflicts
-        fs.cpSync(tempDir, targetDir, { recursive: true, force: true });
+        // Merge repo files into targetDir, resolving any type conflicts
+        forceCopySync(tempDir, targetDir);
     } catch (cloneError: unknown) {
         const raw = cloneError instanceof Error ? cloneError.message : String(cloneError);
         // Sanitize PAT from any error output before surfacing to the client
