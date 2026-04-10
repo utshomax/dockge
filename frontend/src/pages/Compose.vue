@@ -750,6 +750,11 @@ export default {
                 this.$root.toastRes(res);
 
                 if (res.ok) {
+                    // Persist GitHub config (including PAT) when deploying a new stack
+                    if (this.github.repoUrl) {
+                        const pat = this.github.pat || "";
+                        this.$root.emitAgent(this.endpoint, "githubSaveConfig", this.stack.name, this.github.repoUrl, pat, this.github.branch, this.github.composePath, () => {});
+                    }
                     this.isEditMode = false;
                     this.$router.push(this.url);
                 }
